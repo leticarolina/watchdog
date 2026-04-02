@@ -1,0 +1,1 @@
+/Users/leticia/Documents/Github/watchdog/target/wasm32v1-none/release/watchdog_contract.wasm: /Users/leticia/Documents/Github/watchdog/contracts/watchdog-contract/src/lib.rs /Users/leticia/Documents/Github/watchdog/contracts/watchdog-contract/src/test.rs
