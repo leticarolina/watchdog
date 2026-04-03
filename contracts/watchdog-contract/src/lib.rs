@@ -6,24 +6,34 @@
 //!
 //! ## Rules
 //! Every `request_payment` call is evaluated against two behavioral rules:
-//! 1. **Single Payment Limit** — no single payment may exceed `MAX_SINGLE_PAYMENT` 
-//! 2. **Daily Budget Cap** — cumulative spend per agent may not exceed `DAILY_BUDGET` in a 24h window
+//! 1. **Single Payment Limit** — no single payment may exceed the configured limit
+//! 2. **Daily Budget Cap** — cumulative spend per agent may not exceed the daily budget in a 24h window
+//!
+//! ## Configuration
+//! Limits are set by the owner at deploy time via `initialize()` and can be updated anytime via `set_limits()`.
 //!
 //! Built for Stellar Agents Hackathon 2026
 
 #![no_std]
 use soroban_sdk::{contract, contractimpl, contracttype, contracterror, symbol_short, Address, Env};
 
-const MAX_SINGLE_PAYMENT: i128 = 20_000_000; // 2 XLM (1 XLM = 10_000_000 stroops)
-const DAILY_BUDGET: i128 = 40_000_000;        // 4 XLM
+/// Storage keys for contract instance storage.
+#[contracttype]
+pub enum ConfigKey {
+    Owner,
+    MaxSinglePayment,
+    DailyBudget,
+}
 
 /// Errors returned by the Watchdog contract.
 #[contracterror]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-
 pub enum WatchdogError {
     SinglePaymentLimitExceeded = 1,
     DailyBudgetExceeded = 2,
+    NotInitialized = 3,
+    Unauthorized = 4,
+    AlreadyInitialized = 5,
 }
 
 /// Per-agent spending state stored in persistent storage.
@@ -39,6 +49,71 @@ pub struct WatchdogContract;
 
 #[contractimpl]
 impl WatchdogContract {
+    /// Initialize the contract with owner and spending limits.
+    /// Must be called once after deploy. Equivalent to constructor() in Solidity.
+    ///
+    /// # Arguments
+    /// * `owner` - Address that can update limits (= msg.sender in constructor)
+    /// * `max_single_payment` - Max allowed per single payment in stroops
+    /// * `daily_budget` - Max cumulative spend per agent per 24h in stroops
+    pub fn initialize(
+        env: Env,
+        owner: Address,
+        max_single_payment: i128,
+        daily_budget: i128,
+    ) -> Result<(), WatchdogError> {
+        if env.storage().instance().has(&ConfigKey::Owner) {
+            return Err(WatchdogError::AlreadyInitialized);
+        }
+        owner.require_auth();
+        env.storage().instance().set(&ConfigKey::Owner, &owner);
+        env.storage().instance().set(&ConfigKey::MaxSinglePayment, &max_single_payment);
+        env.storage().instance().set(&ConfigKey::DailyBudget, &daily_budget);
+        Ok(())
+    }
+
+    /// Update spending limits. Only callable by owner.
+    /// Equivalent to onlyOwner modifier in Solidity.
+    ///
+    /// # Arguments
+    /// * `caller` - Must match stored owner address
+    /// * `max_single_payment` - New single payment limit in stroops
+    /// * `daily_budget` - New daily budget in stroops
+    pub fn set_limits(
+        env: Env,
+        caller: Address,
+        max_single_payment: i128,
+        daily_budget: i128,
+    ) -> Result<(), WatchdogError> {
+        caller.require_auth();
+        let owner: Address = env
+            .storage()
+            .instance()
+            .get(&ConfigKey::Owner)
+            .ok_or(WatchdogError::NotInitialized)?;
+        if caller != owner {
+            return Err(WatchdogError::Unauthorized);
+        }
+        env.storage().instance().set(&ConfigKey::MaxSinglePayment, &max_single_payment);
+        env.storage().instance().set(&ConfigKey::DailyBudget, &daily_budget);
+        Ok(())
+    }
+
+    /// Returns current spending limits.
+    pub fn get_limits(env: Env) -> Result<(i128, i128), WatchdogError> {
+        let max: i128 = env
+            .storage()
+            .instance()
+            .get(&ConfigKey::MaxSinglePayment)
+            .ok_or(WatchdogError::NotInitialized)?;
+        let budget: i128 = env
+            .storage()
+            .instance()
+            .get(&ConfigKey::DailyBudget)
+            .ok_or(WatchdogError::NotInitialized)?;
+        Ok((max, budget))
+    }
+
     /// Evaluates whether an agent payment is within behavioral limits.
     ///
     /// # Arguments
@@ -50,11 +125,24 @@ impl WatchdogContract {
     /// * `Ok(true)` if payment is approved and state is updated
     ///
     /// # Errors
-    /// * `SinglePaymentLimitExceeded` - amount > MAX_SINGLE_PAYMENT
-    /// * `DailyBudgetExceeded` - cumulative_24h + amount > DAILY_BUDGET
+    /// * `NotInitialized` - contract not initialized yet
+    /// * `SinglePaymentLimitExceeded` - amount > max_single_payment
+    /// * `DailyBudgetExceeded` - cumulative_24h + amount > daily_budget
     pub fn request_payment(env: Env, agent: Address, amount: i128) -> Result<bool, WatchdogError> {
+        let max_single: i128 = env
+            .storage()
+            .instance()
+            .get(&ConfigKey::MaxSinglePayment)
+            .ok_or(WatchdogError::NotInitialized)?;
+
+        let daily_budget: i128 = env
+            .storage()
+            .instance()
+            .get(&ConfigKey::DailyBudget)
+            .ok_or(WatchdogError::NotInitialized)?;
+
         // Rule 1: single payment ceiling
-        if amount > MAX_SINGLE_PAYMENT {
+        if amount > max_single {
             env.events().publish(
                 (symbol_short!("watchdog"), symbol_short!("blocked")),
                 (agent, amount, symbol_short!("sngl_lmt")),
@@ -80,7 +168,7 @@ impl WatchdogContract {
         }
 
         // Rule 2: daily budget ceiling
-        if state.cumulative_24h + amount > DAILY_BUDGET {
+        if state.cumulative_24h + amount > daily_budget {
             env.events().publish(
                 (symbol_short!("watchdog"), symbol_short!("blocked")),
                 (agent, amount, symbol_short!("day_cap")),

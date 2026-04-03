@@ -1,4 +1,4 @@
-CONTRACT_ID=CDXL6SOYHR4WXSAFHGCX2XD4WDW253PZLZO4X5IYYXYQH4BWJABZXDRK
+CONTRACT_ID=CDVNQCBS26ATIJ7FBQZTPV4UDFLCM2TKZ4E77ONRXU4SN2BCNQRSRESC
 
 build:
 	stellar contract build
@@ -20,3 +20,13 @@ invoke:
 		-- request-payment \
 		--agent $$(stellar keys address mykeystellar) \
 		--amount $(AMOUNT)
+		
+initialize:
+	stellar contract invoke \
+		--id $(CONTRACT_ID) \
+		--source mykeystellar \
+		--network testnet \
+		-- initialize \
+		--owner $$(stellar keys address mykeystellar) \
+		--max-single-payment 200000000 \
+		--daily-budget 400000000
