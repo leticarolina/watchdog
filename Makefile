@@ -20,7 +20,7 @@ invoke:
 		-- request-payment \
 		--agent $$(stellar keys address mykeystellar) \
 		--amount $(AMOUNT)
-		
+
 initialize:
 	stellar contract invoke \
 		--id $(CONTRACT_ID) \
@@ -30,3 +30,21 @@ initialize:
 		--owner $$(stellar keys address mykeystellar) \
 		--max-single-payment 200000000 \
 		--daily-budget 400000000
+
+get-limits:
+	stellar contract invoke \
+		--id $(CONTRACT_ID) \
+		--source-account mykeystellar \
+		--network testnet \
+		-- get_limits
+
+set-limits:
+	stellar contract invoke \
+		--id $(CONTRACT_ID) \
+		--source mykeystellar \
+		--network testnet \
+		-- set_limits \
+		--caller $$(stellar keys address mykeystellar) \
+		--max-single-payment 60000000 \
+		--daily-budget 100000000
+	
