@@ -7,10 +7,10 @@ import {
   scValToNative,
   Contract,
   Account,
+  Keypair,
 } from '@stellar/stellar-sdk';
-import { Keypair } from '@stellar/stellar-sdk';
 
-const CONTRACT_ID = 'CDVNQCBS26ATIJ7FBQZTPV4UDFLCM2TKZ4E77ONRXU4SN2BCNQRSRESC';
+const CONTRACT_ID = 'CDK4XFYOHDCJTRXNM4I56ZYUEVLQIRLRLOT7R6XRRYSGPBTGXXSB7DVH';
 const RPC_URL = 'https://soroban-testnet.stellar.org';
 
 // valid dummy source for simulation only
@@ -40,8 +40,12 @@ export async function getLimits(): Promise<{
 
     const result = await server.simulateTransaction(tx);
 
+    if (rpc.Api.isSimulationError(result)) {
+      return { success: false, error: result.error };
+    }
+
     if (!rpc.Api.isSimulationSuccess(result)) {
-      return { success: false, error: 'FailedToReadLimits' };
+      return { success: false, error: 'UnknownSimulationFailure' };
     }
 
     const retval = result.result?.retval;
@@ -56,6 +60,66 @@ export async function getLimits(): Promise<{
       success: true,
       maxSinglePayment: Number(maxSinglePayment),
       dailyBudget: Number(dailyBudget),
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+export async function getAgentState(agent: string): Promise<{
+  success: boolean;
+  cumulative24h?: number;
+  dayStart?: number;
+  error?: string;
+}> {
+  try {
+    const sourceAccount = new Account(DUMMY_SOURCE, '0');
+
+    const operation = contract.call(
+      'get_agent_state',
+      Address.fromString(agent).toScVal(),
+    );
+
+    const tx = new TransactionBuilder(sourceAccount, {
+      fee: '100',
+      networkPassphrase: Networks.TESTNET,
+    })
+      .addOperation(operation)
+      .setTimeout(30)
+      .build();
+
+    const result = await server.simulateTransaction(tx);
+
+    if (rpc.Api.isSimulationError(result)) {
+      return { success: false, error: result.error };
+    }
+
+    if (!rpc.Api.isSimulationSuccess(result)) {
+      return { success: false, error: 'UnknownSimulationFailure' };
+    }
+
+    const retval = result.result?.retval;
+
+    if (!retval) {
+      return { success: false, error: 'MissingReturnValue' };
+    }
+
+    const rawState = scValToNative(retval);
+
+    const state = rawState as {
+      cumulative_24h?: string | number | bigint;
+      day_start?: string | number | bigint;
+      cumulative24h?: string | number | bigint;
+      dayStart?: string | number | bigint;
+    };
+
+    const cumulative = state.cumulative_24h ?? state.cumulative24h ?? 0;
+    const dayStart = state.day_start ?? state.dayStart ?? 0;
+
+    return {
+      success: true,
+      cumulative24h: Number(cumulative),
+      dayStart: Number(dayStart),
     };
   } catch (err: any) {
     return { success: false, error: err.message };
@@ -105,7 +169,7 @@ export async function checkPayment(
   return { approved: false, error: 'SimulationFailed' };
 }
 
-export async function executePayment(
+export async function recordPaymentState(
   agent: string,
   amount: number,
 ): Promise<{ success: boolean; hash?: string; error?: string }> {
@@ -136,11 +200,24 @@ export async function executePayment(
     const sim = await server.simulateTransaction(tx);
 
     if (rpc.Api.isSimulationError(sim)) {
-      return { success: false, error: sim.error };
+      const err = sim.error;
+
+      if (err.includes('Error(Contract, #1)')) {
+        return { success: false, error: 'SinglePaymentLimitExceeded' };
+      }
+
+      if (err.includes('Error(Contract, #2)')) {
+        return { success: false, error: 'DailyBudgetExceeded' };
+      }
+
+      return { success: false, error: err };
+    }
+
+    if (!rpc.Api.isSimulationSuccess(sim)) {
+      return { success: false, error: 'UnknownSimulationFailure' };
     }
 
     tx = rpc.assembleTransaction(tx, sim).build();
-
     tx.sign(keypair);
 
     const res = await server.sendTransaction(tx);

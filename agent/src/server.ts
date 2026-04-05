@@ -1,64 +1,88 @@
 import 'dotenv/config';
 import express from 'express';
 
-import { checkPayment, getLimits } from './contract.js';
+import { getLimits, recordPaymentState } from './contract.js';
 import { PRICING } from './pricing.js';
 import { requirePayment } from './middleware/payment.js';
 
 const app = express();
 const PORT = 3000;
 
-const AGENT = 'GBCP3AAFAMUN5OCNGM3AIASNQSLFU7DTFI2LBEKIICFHJLZY2GYTCM6U';
+const AGENT = process.env.AGENT_ADDRESS;
 
-app.get('/analysis/basic', requirePayment(PRICING.basic), async (_req, res) => {
-  console.log('[basic] hit');
+if (!AGENT) {
+  throw new Error('AGENT_ADDRESS not set');
+}
 
-  const amount = PRICING.basic;
+/* ─────────────────────────────────────────────
+   BASIC ANALYSIS
+───────────────────────────────────────────── */
 
-  const result = await checkPayment(AGENT, amount);
+app.get(
+  '/analysis/basic',
+  requirePayment(PRICING.basic),
+  async (_req, res) => {
+    console.log('[basic] hit');
 
-  if (!result.approved) {
-    console.log('[basic] BLOCKED:', result.error);
+    const paymentTxHash = res.locals.paymentReceipt?.txHash;
 
-    return res.json({
-      blocked: true,
-      reason: result.error,
-    });
-  }
+    const watchdog = await recordPaymentState(AGENT, PRICING.basic);
 
-  const txHash = res.locals.paymentReceipt?.txHash;
-  console.log('[basic] APPROVED — txHash:', txHash);
+    if (!watchdog.success) {
+      console.log('[basic] WATCHDOG STATE WRITE FAILED:', watchdog.error);
 
-  return res.json({
-    success: true,
-    txHash,
-  });
-});
+      return res.status(500).json({
+        error: watchdog.error,
+      });
+    }
 
-app.get('/analysis/deep', requirePayment(PRICING.deep), async (_req, res) => {
-  console.log('[deep] hit');
-
-  const amount = PRICING.deep;
-
-  const result = await checkPayment(AGENT, amount);
-
-  if (!result.approved) {
-    console.log('[deep] BLOCKED:', result.error);
+    console.log('[basic] APPROVED — paymentTxHash:', paymentTxHash);
+    console.log('[basic] WATCHDOG STATE WRITTEN — watchdogTxHash:', watchdog.hash);
 
     return res.json({
-      blocked: true,
-      reason: result.error,
+      success: true,
+      paymentTxHash,
+      watchdogTxHash: watchdog.hash,
     });
-  }
+  },
+);
 
-  const txHash = res.locals.paymentReceipt?.txHash;
-  console.log('[deep] APPROVED — txHash:', txHash);
+/* ─────────────────────────────────────────────
+   DEEP ANALYSIS
+───────────────────────────────────────────── */
 
-  return res.json({
-    success: true,
-    txHash,
-  });
-});
+app.get(
+  '/analysis/deep',
+  requirePayment(PRICING.deep),
+  async (_req, res) => {
+    console.log('[deep] hit');
+
+    const paymentTxHash = res.locals.paymentReceipt?.txHash;
+
+    const watchdog = await recordPaymentState(AGENT, PRICING.deep);
+
+    if (!watchdog.success) {
+      console.log('[deep] WATCHDOG STATE WRITE FAILED:', watchdog.error);
+
+      return res.status(500).json({
+        error: watchdog.error,
+      });
+    }
+
+    console.log('[deep] APPROVED — paymentTxHash:', paymentTxHash);
+    console.log('[deep] WATCHDOG STATE WRITTEN — watchdogTxHash:', watchdog.hash);
+
+    return res.json({
+      success: true,
+      paymentTxHash,
+      watchdogTxHash: watchdog.hash,
+    });
+  },
+);
+
+/* ─────────────────────────────────────────────
+   CONFIG (CONTRACT LIMITS + PRICING)
+───────────────────────────────────────────── */
 
 app.get('/config', async (_req, res) => {
   console.log('[config] hit');

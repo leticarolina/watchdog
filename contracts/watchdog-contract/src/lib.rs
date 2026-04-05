@@ -10,14 +10,12 @@
 //! 2. **Daily Budget Cap** — cumulative spend per agent may not exceed the daily budget in a 24h window
 //!
 //! ## Configuration
-//! Limits are set by the owner at deploy time via `initialize()` and can be updated anytime via `set_limits()`.
-//!
-//! Built for Stellar Agents Hackathon 2026
+//! Limits are set by the owner at deploy time via `initialize()` and can be updated anytime via `set_limits()`
 
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, contracterror, symbol_short, Address, Env};
+use soroban_sdk::{contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env};
 
-/// Storage keys for contract instance storage.
+/// Storage keys for contract instance storage
 #[contracttype]
 pub enum ConfigKey {
     Owner,
@@ -25,7 +23,7 @@ pub enum ConfigKey {
     DailyBudget,
 }
 
-/// Errors returned by the Watchdog contract.
+/// Errors returned by the Watchdog contract
 #[contracterror]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum WatchdogError {
@@ -36,9 +34,10 @@ pub enum WatchdogError {
     AlreadyInitialized = 5,
 }
 
-/// Per-agent spending state stored in persistent storage.
-/// Equivalent to mapping(address => AgentState) in Solidity.
+/// Per-agent spending state stored in persistent storage
+/// Equivalent to mapping(address => AgentState) in Solidity
 #[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AgentState {
     pub cumulative_24h: i128,
     pub day_start: u64,
@@ -50,7 +49,7 @@ pub struct WatchdogContract;
 #[contractimpl]
 impl WatchdogContract {
     /// Initialize the contract with owner and spending limits.
-    /// Must be called once after deploy. Equivalent to constructor() in Solidity.
+    /// Equivalent to constructor() in Solidity.
     ///
     /// # Arguments
     /// * `owner` - Address that can update limits (= msg.sender in constructor)
@@ -65,10 +64,13 @@ impl WatchdogContract {
         if env.storage().instance().has(&ConfigKey::Owner) {
             return Err(WatchdogError::AlreadyInitialized);
         }
+
         owner.require_auth();
+
         env.storage().instance().set(&ConfigKey::Owner, &owner);
         env.storage().instance().set(&ConfigKey::MaxSinglePayment, &max_single_payment);
         env.storage().instance().set(&ConfigKey::DailyBudget, &daily_budget);
+
         Ok(())
     }
 
@@ -86,16 +88,20 @@ impl WatchdogContract {
         daily_budget: i128,
     ) -> Result<(), WatchdogError> {
         caller.require_auth();
+
         let owner: Address = env
             .storage()
             .instance()
             .get(&ConfigKey::Owner)
             .ok_or(WatchdogError::NotInitialized)?;
+
         if caller != owner {
             return Err(WatchdogError::Unauthorized);
         }
+
         env.storage().instance().set(&ConfigKey::MaxSinglePayment, &max_single_payment);
         env.storage().instance().set(&ConfigKey::DailyBudget, &daily_budget);
+
         Ok(())
     }
 
@@ -106,12 +112,23 @@ impl WatchdogContract {
             .instance()
             .get(&ConfigKey::MaxSinglePayment)
             .ok_or(WatchdogError::NotInitialized)?;
+
         let budget: i128 = env
             .storage()
             .instance()
             .get(&ConfigKey::DailyBudget)
             .ok_or(WatchdogError::NotInitialized)?;
+
         Ok((max, budget))
+    }
+
+    /// Returns current per-agent state.
+    /// If the agent has no stored state yet, returns a zeroed state.
+    pub fn get_agent_state(env: Env, agent: Address) -> AgentState {
+        env.storage().persistent().get(&agent).unwrap_or(AgentState {
+            cumulative_24h: 0,
+            day_start: 0,
+        })
     }
 
     /// Evaluates whether an agent payment is within behavioral limits.
@@ -145,21 +162,17 @@ impl WatchdogContract {
         if amount > max_single {
             env.events().publish(
                 (symbol_short!("watchdog"), symbol_short!("blocked")),
-                (agent, amount, symbol_short!("sngl_lmt")),
+                (agent.clone(), amount, symbol_short!("sngl_lmt")),
             );
             return Err(WatchdogError::SinglePaymentLimitExceeded);
         }
 
         let now: u64 = env.ledger().timestamp();
 
-        let mut state: AgentState = env
-            .storage()
-            .persistent()
-            .get(&agent)
-            .unwrap_or(AgentState {
-                cumulative_24h: 0,
-                day_start: now,
-            });
+        let mut state: AgentState = env.storage().persistent().get(&agent).unwrap_or(AgentState {
+            cumulative_24h: 0,
+            day_start: now,
+        });
 
         // Reset 24h window if expired
         if now >= state.day_start + 86400 {
@@ -171,7 +184,7 @@ impl WatchdogContract {
         if state.cumulative_24h + amount > daily_budget {
             env.events().publish(
                 (symbol_short!("watchdog"), symbol_short!("blocked")),
-                (agent, amount, symbol_short!("day_cap")),
+                (agent.clone(), amount, symbol_short!("day_cap"), state.day_start),
             );
             return Err(WatchdogError::DailyBudgetExceeded);
         }
@@ -181,7 +194,7 @@ impl WatchdogContract {
 
         env.events().publish(
             (symbol_short!("watchdog"), symbol_short!("approved")),
-            (agent, amount, state.cumulative_24h),
+            (agent, amount, state.cumulative_24h, state.day_start),
         );
 
         Ok(true)

@@ -160,7 +160,7 @@ fn test_malicious_agent_drain_attempt_blocked() {
     // Step 2: suspicious large payment (but still under single limit)
     let ok = client.request_payment(&agent, &90_000_000_i128); // 9 XLM
     assert_eq!(ok, true);
-    // Total now: 17 XLM
+    // Total now: 24 XLM
 
     // Step 3: attempt to drain remaining budget aggressively
     let result = client.try_request_payment(&agent, &300_000_000_i128); // 30 XLM attempt
@@ -211,4 +211,59 @@ fn test_normal_vs_malicious_agent_behavior() {
         drain,
         Err(Ok(WatchdogError::DailyBudgetExceeded))
     );
+}
+
+#[test]
+fn test_get_agent_state_default_zero() {
+    let (env, client, _) = setup();
+    let agent = new_agent(&env);
+
+    let state = client.get_agent_state(&agent);
+
+    assert_eq!(
+        state,
+        AgentState {
+            cumulative_24h: 0,
+            day_start: 0,
+        }
+    );
+}
+
+#[test]
+fn test_get_agent_state_updates_after_payment() {
+    let (env, client, _) = setup();
+    let agent = new_agent(&env);
+
+    let ok = client.request_payment(&agent, &100_000_000_i128); // 10 XLM
+    assert_eq!(ok, true);
+
+    let state = client.get_agent_state(&agent);
+
+    assert_eq!(state.cumulative_24h, 100_000_000_i128);
+    assert_eq!(state.day_start, 1000_u64);
+}
+
+#[test]
+fn test_get_agent_state_after_24h_reset() {
+    let (env, client, _) = setup();
+    let agent = new_agent(&env);
+
+    // Spend part of budget in first window
+    let ok1 = client.request_payment(&agent, &100_000_000_i128);
+    assert_eq!(ok1, true);
+
+    let state_before = client.get_agent_state(&agent);
+    assert_eq!(state_before.cumulative_24h, 100_000_000_i128);
+    assert_eq!(state_before.day_start, 1000_u64);
+
+    // Move time forward beyond 24h
+    env.ledger().with_mut(|l| l.timestamp += 86400);
+
+    // New request should reset prior window and start fresh
+    let ok2 = client.request_payment(&agent, &100_000_000_i128);
+    assert_eq!(ok2, true);
+
+    let state_after = client.get_agent_state(&agent);
+    assert_eq!(state_after.cumulative_24h, 100_000_000_i128);
+    assert_eq!(state_after.day_start, 87400_u64);
 }
