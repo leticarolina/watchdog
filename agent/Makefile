@@ -2,7 +2,7 @@
 # Watchdog Agent Test Commands
 # ─────────────────────────────────────────────
 
-BASE_URL=http://localhost:3000
+BASE_URL=https://watchdog-production-2cca.up.railway.app/config
 
 # ─────────────────────────────────────────────
 # CONFIG

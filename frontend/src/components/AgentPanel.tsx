@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { API_BASE } from '../config'
 
 interface AgentPanelProps {
   basicPriceXLM: number
@@ -24,7 +25,7 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
     setBasicLoading(true)
     const pendingId = onStart('basic', basicPriceXLM)
     try {
-      const res = await fetch('/run/basic')
+      const res = await fetch(`${API_BASE}/run/basic`)
       const data = await res.json()
       if (data.success) {
         onApproved(pendingId, basicPriceXLM, data.paymentTxHash ?? '', data.watchdogTxHash ?? '')
@@ -44,7 +45,7 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
     setDeepLoading(true)
     const pendingId = onStart('deep', deepPriceXLM)
     try {
-      const res = await fetch('/run/deep')
+      const res = await fetch(`${API_BASE}/run/deep`)
       const data = await res.json()
       if (data.success) {
         onApproved(pendingId, deepPriceXLM, data.paymentTxHash ?? '', data.watchdogTxHash ?? '')
@@ -66,7 +67,7 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
       for (let i = 0; i < DRAIN_MAX_ATTEMPTS; i++) {
         const pendingId = onStart('basic', basicPriceXLM)
         try {
-          const res = await fetch('/run/basic')
+          const res = await fetch(`${API_BASE}/run/basic`)
           const data = await res.json()
           if (data.success) {
             onApproved(pendingId, basicPriceXLM, data.paymentTxHash ?? '', data.watchdogTxHash ?? '')

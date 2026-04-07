@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { API_BASE } from './config'
 import { AgentPanel } from './components/AgentPanel'
 import { TxFeed, type TxItem } from './components/TxFeed'
 import { ContractState, type AgentInfo } from './components/ContractState'
@@ -85,8 +86,8 @@ export default function App() {
   const [resetLoading, setResetLoading] = useState(false)
 
   useEffect(() => {
-    fetch('/api/config').then((r) => r.json()).then(setConfig).catch(console.error)
-    fetch('/api/agent')
+    fetch(`${API_BASE}/api/config`).then((r) => r.json()).then(setConfig).catch(console.error)
+    fetch(`${API_BASE}/api/agent`)
       .then((r) => r.json())
       .then((data: AgentInfo) => {
         setAgent(data)
@@ -132,7 +133,7 @@ export default function App() {
     setResetLoading(true)
     try {
       const resetData: AgentInfo & { success?: boolean; error?: string } =
-        await fetch('/api/reset', { method: 'POST' }).then((r) => r.json())
+        await fetch(`${API_BASE}/api/reset`, { method: 'POST' }).then((r) => r.json())
       if (resetData.error) {
         console.error('[reset]', resetData.error)
         return
@@ -142,8 +143,8 @@ export default function App() {
 
       // Fetch real on-chain state and refresh config in parallel
       const [agentState, newConfig] = await Promise.all([
-        fetch('/api/agent/state').then((r) => r.json()).catch(() => null),
-        fetch('/api/config').then((r) => r.json()).catch(() => null),
+        fetch(`${API_BASE}/api/agent/state`).then((r) => r.json()).catch(() => null),
+        fetch(`${API_BASE}/api/config`).then((r) => r.json()).catch(() => null),
       ])
       if (agentState) {
         setSpentXLM(agentState.spent / STROOPS_PER_XLM)
