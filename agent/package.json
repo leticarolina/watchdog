@@ -23,7 +23,8 @@
     "express": "^5.2.1",
     "mppx": "^0.5.4",
     "ts-node": "^10.9.2",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "viem": "^2.47.10"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19"
