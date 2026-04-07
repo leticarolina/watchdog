@@ -6,11 +6,10 @@ import { checkPayment } from '../contract.js';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-/**
- * Fixed agent address used for contract simulation.
- * Change this to reset the 24h cumulative window (each address starts fresh).
- */
-const AGENT = process.env.AGENT_ADDRESS ?? 'GDLYQW63LC3F4VCZC7T6C5JGLEZOU3MZ23EJDX3WCTTMZDPQT3ES25KZ';
+/** Returns the current agent address — reads env each call so /reset takes effect immediately. */
+function getAgent(): string {
+  return process.env.AGENT_ADDRESS ?? 'GBCP3AAFAMUN5OCNGM3AIASNQSLFU7DTFI2LBEKIICFHJLZY2GYTCM6U';
+}
 
 /** Convert stroops (integer) to the XLM decimal string the MPP SDK expects. */
 function stroopsToXlm(stroops: number): string {
@@ -88,7 +87,7 @@ type VerifyResult =
  */
 async function verifyPayment(req: Request, requiredAmount: number): Promise<VerifyResult> {
   // Contract simulation runs first — no payment is issued if the rules would reject.
-  const simulation = await checkPayment(AGENT, requiredAmount);
+  const simulation = await checkPayment(getAgent(), requiredAmount);
   if (!simulation.approved) {
     return { blocked: true, reason: simulation.error ?? 'ContractRejected' };
   }
@@ -150,9 +149,15 @@ export function requirePayment(requiredAmount: number) {
     }
 
     if ('blocked' in result) {
-      console.log('[payment] BLOCKED by contract:', result.reason);
-      return res.json({ blocked: true, reason: result.reason });
-    }
+        console.log(
+          `[payment] blocked agent=${getAgent()} endpoint=${req.originalUrl} reason=${result.reason} amount=${requiredAmount}`,
+        );
+      
+        return res.json({
+          blocked: true,
+          reason: result.reason,
+        });
+      }
 
     if (result.status === 402) {
       console.log('[payment] 402 — issuing MPP challenge');
