@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import cors from 'cors'
 
 import { getLimits, recordPaymentState, getAgentState, checkPayment } from './contract.js';
 import { PRICING } from './pricing.js';
@@ -8,6 +9,15 @@ import { runAnalysis } from './client.js';
 
 const app = express();
 const PORT = 3000;
+
+app.use(cors({
+  origin: [
+    'http://localhost:5175',
+    'http://localhost:5173',
+    'https://watchdog-six-blue.vercel.app',
+  ],
+  methods: ['GET', 'POST'],
+}))
 
 if (!process.env.AGENT_ADDRESS) {
   throw new Error('AGENT_ADDRESS not set');
