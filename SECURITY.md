@@ -20,30 +20,29 @@ Watchdog is designed to protect against autonomous agent spending anomalies. The
 
 ### Threats Watchdog Does NOT Protect Against
 
-- **Key compromise at the owner level** — if the owner key is compromised, limits can be changed via `set_limits`. Protect the owner key.
+- **Key compromise at the owner level** — if the owner key is compromised, limits can be changed via `set_limits`.
 - **Social engineering** — Watchdog enforces on-chain rules, not intent. If an agent is instructed to make many legitimate-looking payments, Watchdog will approve them until the daily cap is hit.
 - **Flash attacks within a single transaction** — Watchdog evaluates per `request_payment` call. Atomically bundled payments are not in scope.
-- **Front-running** — Soroban does not guarantee ordering between concurrent calls. Two agents calling simultaneously could both pass checks before either state update lands.
 
 ---
 
 ## Contract Design Decisions
 
-### Why global limits instead of per-agent limits (v1)
+### Global limits instead of per-agent limits (v1)
 
-Per-agent limits require an additional initialization step per agent and increase contract surface area. For v1, a single shared policy is simpler to reason about and audit. Per-agent limits are planned for v2.
+Per-agent limits require an additional initialization step per agent and increase contract surface area. Per-agent limits are planned for v2.
 
-### Why 2 rules instead of more
+### Only 2 rules instead of more
 
-Each rule adds state, storage reads, and attack surface. A velocity/cooldown rule was evaluated and rejected — legitimate agents may request data rapidly and a hard cooldown would create false positives. Two rules cover the primary threat vectors with minimal complexity.
+Each rule adds state, storage reads, and attack surface. A velocity/cooldown rule was evaluated and rejected because legitimate agents may request data rapidly and a hard cooldown would create false positives. Two rules cover the primary threat vectors.
 
-### Why owner-updatable limits
+### owner-updatable limits
 
-Hardcoded limits would require a contract redeploy to adjust thresholds. `set_limits` allows the owner to tune risk tolerance post-deploy without disrupting agent state. The tradeoff is that a compromised owner key can raise limits — mitigated by protecting the owner key offline.
+Hardcoded limits would require a contract redeploy to adjust thresholds. `set_limits` allows the owner to tune risk tolerance post-deploy without disrupting agent state. 
 
-### Why lazy 24h window reset
+### 24h window reset
 
-The contract resets an agent's spending window on the first `request_payment` call after the window expires — no keeper, no cron job, no external trigger. This eliminates an entire class of keeper/oracle dependencies and makes the contract fully self-contained.
+The contract resets an agent's spending window on the first `request_payment` call after the window expires. This eliminates an entire class of keeper/oracle dependencies and makes the contract fully self-contained.
 
 ---
 
@@ -51,11 +50,11 @@ The contract resets an agent's spending window on the first `request_payment` ca
 
 | Function | Who can call |
 | ---------- | ------------- |
-| `initialize` | Anyone — but only once. Subsequent calls return `AlreadyInitialized`. |
-| `request_payment` | Anyone — designed to be called by any agent |
-| `set_limits` | Owner only — enforced via `require_auth` + address comparison |
-| `get_limits` | Anyone — read only |
-| `get_agent_state` | Anyone — read only |
+| `initialize` | Anyone - only once. |
+| `request_payment` | Anyone - designed to be called by any agent |
+| `set_limits` | Owner only - enforced via `require_auth` + address comparison |
+| `get_limits` | read only |
+| `get_agent_state` | read only |
 
 ---
 
