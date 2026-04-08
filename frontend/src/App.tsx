@@ -29,52 +29,54 @@ function LandingPage({ onLaunch }: { onLaunch: () => void }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6" style={{ background: '#F4F1EB' }}>
       {/* Logo */}
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center fade-up-0">
         {/* <img src={watchdogIcon} alt="Watchdog icon" className="w-80 h-80 object-contain" />
         <img src={logoName} alt="WATCHDOG" className="h-12 object-contain" style={{ width: '420px' }} /> */}
         <img src={landPage} alt="Logo" className="w-full max-w-48 sm:max-w-sm lg:max-w-md object-contain" />
       </div>
 
       {/* Tagline */}
-      <p className="text-base mb-6 mt-6 text-center" style={{ color: '#1B3A4B', opacity: 0.7 }}>
-      Real-time payment risk engine for autonomous agents on Stellar.
+      <p className="text-xl sm:text-2xl mb-6 mt-6 text-center font-semibold tracking-tight fade-up-1" style={{ color: '#1B3A4B', fontFamily: "'Space Grotesk', sans-serif" }}>
+        AI agents can now spend money.<br /><span className='text-[#e99e33]'>Watchdog</span> makes sure they don't spend too much.
       </p>
 
+
+      {/* CTA */}
+      <button
+        onClick={onLaunch}
+        className="mb-14 px-9 py-5 rounded-lg font-semibold text-base shadow-sm hover:opacity-90 transition-opacity text-[#1B3A4B] text-md fade-up-1"
+        style={{ background: '#e99e33' }}
+      >
+        Launch Demo
+      </button>
+
       {/* Feature cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-2xl w-full mb-6">
-        <div className="rounded-xl border border-gray-300 px-5 py-3 flex items-center gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-2xl w-full ">
+        <div className="rounded-xl border border-gray-300 px-3 py-2 flex items-center gap-2">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6170" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2l7 4v6c0 4.418-3.134 8.385-7 9.5C8.134 20.385 5 16.418 5 12V6l7-4z" />
           </svg>
-          <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>Per-TX Limit</p>
+          <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>Cap each purchase</p>
         </div>
 
-        <div className="rounded-xl border border-gray-300 px-5 py-3 flex items-center gap-2">
+        <div className="rounded-xl border border-gray-300 px-3 py-2 flex items-center gap-2">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6170" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="12" width="4" height="9" rx="1" />
             <rect x="10" y="7" width="4" height="14" rx="1" />
             <rect x="17" y="3" width="4" height="18" rx="1" />
           </svg>
-          <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>Daily Budget Cap</p>
+          <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>Set a daily limit</p>
         </div>
 
-        <div className="rounded-xl border border-gray-300 px-5 py-3 flex items-center gap-2 sm:col-span-2 sm:justify-self-center lg:col-span-1 lg:justify-self-auto">
+        <div className="rounded-xl border border-gray-300 px-3 py-2 flex items-center gap-2 sm:col-span-2 sm:justify-self-center lg:col-span-1 lg:justify-self-auto">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6170" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
             <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
           </svg>
-          <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>On-Chain Enforcement</p>
+          <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>On-Chain rules enforcement</p>
         </div>
       </div>
 
-      {/* CTA */}
-      <button
-        onClick={onLaunch}
-        className="mb-14 px-9 py-5 rounded-md text-white font-semibold text-base shadow-sm hover:opacity-90 transition-opacity "
-        style={{ background: '#e99e33' }}
-      >
-        Launch Demo
-      </button>
 
       {/* Footer */}
       <p className="absolute bottom-6 text-xs" style={{ color: '#1B3A4B', opacity: 0.4 }}>
@@ -100,7 +102,16 @@ export default function App() {
       .then((r) => r.json())
       .then((data: AgentInfo) => {
         setAgent(data)
-        if (data.cumulative24h) setSpentXLM(data.cumulative24h / STROOPS_PER_XLM)
+        // Always sync spent from on-chain state (authoritative), not backend in-memory
+        fetch(`${API_BASE}/agent/state`)
+          .then((r) => r.json())
+          .then((state) => {
+            if (state?.spent != null) setSpentXLM(state.spent / STROOPS_PER_XLM)
+            else if (data.cumulative24h) setSpentXLM(data.cumulative24h / STROOPS_PER_XLM)
+          })
+          .catch(() => {
+            if (data.cumulative24h) setSpentXLM(data.cumulative24h / STROOPS_PER_XLM)
+          })
       })
       .catch(console.error)
   }, [])

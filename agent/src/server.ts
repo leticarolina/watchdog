@@ -152,6 +152,17 @@ app.get('/config', async (_req, res) => {
    AGENT POOL
 ───────────────────────────────────────────── */
 
+function resolvedSpent(state: { success: boolean; cumulative24h?: number; dayStart?: number }): number {
+  if (!state.success) return 0;
+  const cumulative = (state as any).cumulative24h ?? 0;
+  const dayStart = (state as any).dayStart ?? 0;
+  // Apply the same 24h expiry the contract uses — if the window has passed,
+  // the stored value is stale (lazy reset) so treat the agent as fresh.
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (dayStart > 0 && nowSec - dayStart >= 86400) return 0;
+  return cumulative;
+}
+
 app.get('/agent', async (_req, res) => {
   const agentAddr = process.env.AGENT_ADDRESS!;
   const state = await getAgentState(agentAddr).catch(() => ({ success: false }));
@@ -159,7 +170,7 @@ app.get('/agent', async (_req, res) => {
     currentAgent: agentAddr,
     agentIndex: currentAgentIndex,
     totalAgents: agentPool.length,
-    cumulative24h: state.success ? ((state as any).cumulative24h ?? 0) : 0,
+    cumulative24h: resolvedSpent(state as any),
   });
 });
 
@@ -170,7 +181,7 @@ app.get('/agent/state', async (_req, res) => {
     getLimits().catch(() => ({ success: false })),
   ]);
   return res.json({
-    spent: state.success ? ((state as any).cumulative24h ?? 0) : 0,
+    spent: resolvedSpent(state as any),
     dailyBudget: limits.success ? (limits as any).dailyBudget : 0,
     maxSinglePayment: limits.success ? (limits as any).maxSinglePayment : 0,
   });
@@ -186,8 +197,14 @@ app.post('/reset', async (_req, res) => {
     const idx = (start + i) % agentPool.length;
     const candidate = agentPool[idx];
     if (!candidate) continue;
-    const check = await checkPayment(candidate, PRICING.basic);
-    console.log(`[reset] checking agent[${idx}] ${candidate.slice(0, 8)}… approved=${check.approved} reason=${check.error ?? 'ok'}`);
+    const [check, agentState] = await Promise.all([
+      checkPayment(candidate, PRICING.basic),
+      getAgentState(candidate).catch(() => ({ success: false })),
+    ]);
+    const spent = resolvedSpent(agentState as any);
+    const dayStart = (agentState as any).dayStart ?? 0;
+    const nowSec = Math.floor(Date.now() / 1000);
+    console.log(`[reset] agent[${idx}] ${candidate.slice(0, 8)}… approved=${check.approved} reason=${check.error ?? 'ok'} spent=${spent} dayStart=${dayStart} age=${nowSec - dayStart}s`);
     if (check.approved) {
       currentAgentIndex = idx;
       process.env.AGENT_ADDRESS = candidate;
