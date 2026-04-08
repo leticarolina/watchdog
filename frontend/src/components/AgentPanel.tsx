@@ -177,7 +177,7 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
               Reset Demo
             </button>
             <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>
-              new agent
+              switch agent
             </p>
           </div>
         </>

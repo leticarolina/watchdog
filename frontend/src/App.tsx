@@ -32,44 +32,53 @@ function LandingPage({ onLaunch }: { onLaunch: () => void }) {
       <div className="flex flex-col items-center">
         {/* <img src={watchdogIcon} alt="Watchdog icon" className="w-80 h-80 object-contain" />
         <img src={logoName} alt="WATCHDOG" className="h-12 object-contain" style={{ width: '420px' }} /> */}
-        <img src={landPage} alt="Logo" className="mt-6 w-full max-w-md object-contain" />
+        <img src={landPage} alt="Logo" className="w-full max-w-md object-contain" />
       </div>
 
       {/* Tagline */}
-      <p className="text-base mb-10 mt-10 text-center" style={{ color: '#1B3A4B', opacity: 0.7 }}>
+      <p className="text-base mb-6 mt-6 text-center" style={{ color: '#1B3A4B', opacity: 0.7 }}>
       Real-time payment risk engine for autonomous agents on Stellar.
       </p>
 
-      {/* Feature pills */}
-      {/* <div className="flex flex-wrap items-center justify-center gap-3 mb-12">
-        {[
-          { icon: '🛡', label: 'Single Payment Limit' },
-          { icon: '📊', label: 'Daily Budget Cap' },
-          { icon: '⛓', label: 'On-Chain Enforcement' },
-        ].map(({ icon, label }) => (
-          <div
-            key={label}
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border"
-            style={{ background: 'white', borderColor: '#1B3A4B22', color: '#1B3A4B' }}
-          >
-            <span>{icon}</span>
-            <span>{label}</span>
-          </div>
-        ))}
-      </div> */}
+      {/* Feature cards */}
+      <div className="grid grid-cols-3 gap-4 max-w-2xl w-full mb-6">
+        <div className="rounded-xl border border-gray-300 px-5 py-3 flex items-center gap-2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6170" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2l7 4v6c0 4.418-3.134 8.385-7 9.5C8.134 20.385 5 16.418 5 12V6l7-4z" />
+          </svg>
+          <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>Per-TX Limit</p>
+        </div>
+
+        <div className="rounded-xl border border-gray-300 px-5 py-3 flex items-center gap-2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6170" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="12" width="4" height="9" rx="1" />
+            <rect x="10" y="7" width="4" height="14" rx="1" />
+            <rect x="17" y="3" width="4" height="18" rx="1" />
+          </svg>
+          <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>Daily Budget Cap</p>
+        </div>
+
+        <div className="rounded-xl border border-gray-300 px-5 py-3 flex items-center gap-2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6170" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+          </svg>
+          <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>On-Chain Enforcement</p>
+        </div>
+      </div>
 
       {/* CTA */}
       <button
         onClick={onLaunch}
-        className="mb-14 px-8 py-3.5 rounded-md text-white font-semibold text-base shadow-sm hover:opacity-90 transition-opacity"
-        style={{ background: '#1B3A4B' }}
+        className="mb-14 px-9 py-5 rounded-md text-white font-semibold text-base shadow-sm hover:opacity-90 transition-opacity "
+        style={{ background: '#e99e33' }}
       >
         Launch Demo
       </button>
 
       {/* Footer */}
       <p className="absolute bottom-6 text-xs" style={{ color: '#1B3A4B', opacity: 0.4 }}>
-        Built for Stellar Agents Hackathon 2026
+        Leticia Azevedo - Built for Stellar Agents Hackathon 2026
       </p>
     </div>
   )
@@ -86,8 +95,8 @@ export default function App() {
   const [resetLoading, setResetLoading] = useState(false)
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/config`).then((r) => r.json()).then(setConfig).catch(console.error)
-    fetch(`${API_BASE}/api/agent`)
+    fetch(`${API_BASE}/config`).then((r) => r.json()).then(setConfig).catch(console.error)
+    fetch(`${API_BASE}/agent`)
       .then((r) => r.json())
       .then((data: AgentInfo) => {
         setAgent(data)
@@ -133,7 +142,7 @@ export default function App() {
     setResetLoading(true)
     try {
       const resetData: AgentInfo & { success?: boolean; error?: string } =
-        await fetch(`${API_BASE}/api/reset`, { method: 'POST' }).then((r) => r.json())
+        await fetch(`${API_BASE}/reset`, { method: 'POST' }).then((r) => r.json())
       if (resetData.error) {
         console.error('[reset]', resetData.error)
         return
@@ -143,8 +152,8 @@ export default function App() {
 
       // Fetch real on-chain state and refresh config in parallel
       const [agentState, newConfig] = await Promise.all([
-        fetch(`${API_BASE}/api/agent/state`).then((r) => r.json()).catch(() => null),
-        fetch(`${API_BASE}/api/config`).then((r) => r.json()).catch(() => null),
+        fetch(`${API_BASE}/agent/state`).then((r) => r.json()).catch(() => null),
+        fetch(`${API_BASE}/config`).then((r) => r.json()).catch(() => null),
       ])
       if (agentState) {
         setSpentXLM(agentState.spent / STROOPS_PER_XLM)
@@ -171,7 +180,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: '#F4F1EB' }}>
       {/* Navbar */}
-      <header className="px-8 mt-2 shrink-0">
+      <header className="px-8 mt-2 mb-4 shrink-0">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Logo — click to return to landing */}
           <button
