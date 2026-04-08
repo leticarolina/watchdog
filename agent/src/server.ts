@@ -14,7 +14,7 @@ app.use(cors({
   origin: [
     'http://localhost:5175',
     'http://localhost:5173',
-    'https://watchdog-six-blue.vercel.app',
+    'https://watchdog-agent.vercel.app',
   ],
   methods: ['GET', 'POST'],
 }))
