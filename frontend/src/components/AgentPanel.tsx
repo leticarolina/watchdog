@@ -91,9 +91,9 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border px-5 py-5 flex items-start gap-3" style={{ borderColor: '#1B3A4B14' }}>
+    <div className="bg-white rounded-xl shadow-sm border px-5 py-5 flex flex-col sm:grid sm:grid-cols-2 lg:flex lg:flex-row lg:items-start gap-3" style={{ borderColor: '#1B3A4B14' }}>
       {/* Basic Data */}
-      <div className="flex flex-col items-center gap-1.5 flex-1">
+      <div className="flex flex-col items-center gap-1.5 lg:flex-1">
         <button
           onClick={runBasic}
           disabled={anyLoading}
@@ -113,7 +113,7 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
       </div>
 
       {/* Expensive Data */}
-      <div className="flex flex-col items-center gap-1.5 flex-1">
+      <div className="flex flex-col items-center gap-1.5 lg:flex-1">
         <button
           onClick={runDeep}
           disabled={anyLoading}
@@ -132,7 +132,7 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
       </div>
 
       {/* Drain Attempt */}
-      <div className="flex flex-col items-center gap-1.5 flex-1">
+      <div className="flex flex-col items-center gap-1.5 lg:flex-1">
         <button
           onClick={runDrain}
           disabled={anyLoading}
@@ -159,14 +159,14 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
       {/* Divider */}
       {onReset && (
         <>
-          <div className="w-px self-stretch mx-1" style={{ background: '#1B3A4B14' }} />
+          <div className="hidden lg:block w-px self-stretch mx-1" style={{ background: '#1B3A4B14' }} />
 
           {/* Reset Demo */}
           <div className="flex flex-col items-center gap-1.5">
             <button
               onClick={onReset}
               disabled={anyLoading}
-              className="flex items-center gap-1.5 border text-sm font-medium rounded-lg px-4 py-3.5 transition-opacity hover:opacity-75 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+              className="w-full lg:w-auto flex items-center justify-center gap-1.5 border text-sm font-medium rounded-lg px-4 py-3.5 transition-opacity hover:opacity-75 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
               style={{ borderColor: '#2A617060', color: '#2A6170' }}
             >
               {resetLoading ? (

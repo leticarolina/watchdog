@@ -56,7 +56,7 @@ export function TxFeed({ items }: TxFeedProps) {
   }, [])
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border p-5 flex flex-col gap-3 h-full min-h-0" style={{ borderColor: '#1B3A4B14' }}>
+    <div className="bg-white rounded-xl shadow-sm border p-5 flex flex-col gap-3 min-h-[300px] sm:min-h-[400px] lg:h-full lg:min-h-0" style={{ borderColor: '#1B3A4B14' }}>
       <h2 className="text-xs font-semibold uppercase tracking-wider shrink-0" style={{ color: '#1B3A4B', opacity: 0.5 }}>
         Transaction Feed
       </h2>

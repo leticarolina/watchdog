@@ -27,12 +27,12 @@ function makeId(): string {
 
 function LandingPage({ onLaunch }: { onLaunch: () => void }) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: '#F4F1EB' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6" style={{ background: '#F4F1EB' }}>
       {/* Logo */}
       <div className="flex flex-col items-center">
         {/* <img src={watchdogIcon} alt="Watchdog icon" className="w-80 h-80 object-contain" />
         <img src={logoName} alt="WATCHDOG" className="h-12 object-contain" style={{ width: '420px' }} /> */}
-        <img src={landPage} alt="Logo" className="w-full max-w-md object-contain" />
+        <img src={landPage} alt="Logo" className="w-full max-w-48 sm:max-w-sm lg:max-w-md object-contain" />
       </div>
 
       {/* Tagline */}
@@ -41,7 +41,7 @@ function LandingPage({ onLaunch }: { onLaunch: () => void }) {
       </p>
 
       {/* Feature cards */}
-      <div className="grid grid-cols-3 gap-4 max-w-2xl w-full mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-2xl w-full mb-6">
         <div className="rounded-xl border border-gray-300 px-5 py-3 flex items-center gap-2">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6170" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2l7 4v6c0 4.418-3.134 8.385-7 9.5C8.134 20.385 5 16.418 5 12V6l7-4z" />
@@ -58,7 +58,7 @@ function LandingPage({ onLaunch }: { onLaunch: () => void }) {
           <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>Daily Budget Cap</p>
         </div>
 
-        <div className="rounded-xl border border-gray-300 px-5 py-3 flex items-center gap-2">
+        <div className="rounded-xl border border-gray-300 px-5 py-3 flex items-center gap-2 sm:col-span-2 sm:justify-self-center lg:col-span-1 lg:justify-self-auto">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6170" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
             <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
@@ -178,16 +178,16 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ background: '#F4F1EB' }}>
+    <div className="min-h-screen lg:h-screen flex flex-col lg:overflow-hidden" style={{ background: '#F4F1EB' }}>
       {/* Navbar */}
-      <header className="px-8 mt-2 mb-4 shrink-0">
+      <header className="px-4 sm:px-6 lg:px-8 mt-2 mb-4 shrink-0">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Logo — click to return to landing */}
           <button
             onClick={() => setView('landing')}
             className="flex items-center hover:opacity-75 transition-opacity"
           >
-            <img src={watchdogIcon} alt="Watchdog" className="h-16 w-16 object-contain" />
+            <img src={watchdogIcon} alt="Watchdog" className="h-10 w-10 lg:h-16 lg:w-16 object-contain" />
             <img src={logoName} alt="WATCHDOG" className="h-5 object-contain" />
           </button>
 
@@ -196,7 +196,7 @@ export default function App() {
             href="https://stellar.expert/explorer/testnet/contract/CDK4XFYOHDCJTRXNM4I56ZYUEVLQIRLRLOT7R6XRRYSGPBTGXXSB7DVH"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 border text-sm font-medium rounded-lg px-4 py-2 transition-opacity hover:opacity-75"
+            className="hidden lg:flex items-center gap-1.5 border text-sm font-medium rounded-lg px-4 py-2 transition-opacity hover:opacity-75"
             style={{ borderColor: '#2A617040', color: '#2A6170', background: '#2A617008' }}
           >
             Smart Contract ↗
@@ -205,7 +205,7 @@ export default function App() {
       </header>
 
       {/* Two-column layout */}
-      <main className="flex-1 min-h-0 max-w-7xl w-full mx-auto px-8 pb-6 grid grid-cols-[1fr_340px] gap-5">
+      <main className="flex-1 lg:min-h-0 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-6 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
         {/* Left column: action bar + feed */}
         <div className="flex flex-col gap-4 min-h-0">
           <AgentPanel
