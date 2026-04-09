@@ -97,7 +97,7 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
         <button
           onClick={runBasic}
           disabled={anyLoading}
-          className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-left"
+          className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-70 disabled:opacity-40 disabled:cursor-not-allowed text-left"
           style={{ background: '#1B3A4B' }}
         >
           <div className="flex items-center justify-between w-full">
@@ -117,7 +117,7 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
         <button
           onClick={runDeep}
           disabled={anyLoading}
-          className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-left"
+          className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-70 disabled:opacity-40 disabled:cursor-not-allowed text-left"
           style={{ background: '#f85a0c'}}
         >
           <div className="flex items-center justify-between w-full">
@@ -137,7 +137,7 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
         <button
           onClick={runDrain}
           disabled={anyLoading}
-          className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-left"
+          className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-70 disabled:opacity-40 disabled:cursor-not-allowed text-left"
           style={{ background: '#ffb913' }}
         >
           <div className="flex items-center justify-between w-full">
@@ -160,7 +160,7 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
             <button
               onClick={onReset}
               disabled={anyLoading}
-              className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-left whitespace-nowrap"
+              className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-70 disabled:opacity-40 disabled:cursor-not-allowed text-left whitespace-nowrap"
               style={{ background: '#95ba9c' }}
             >
               <div className="flex items-center justify-between w-full">

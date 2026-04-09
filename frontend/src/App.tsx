@@ -37,51 +37,68 @@ function LandingPage({ onLaunch }: { onLaunch: () => void }) {
 
       {/* Tagline */}
       <p className="sm:text-xl mb-6 mt-6 text-center  tracking-tight fade-up-1" style={{ color: '#1B3A4B', fontFamily: "'Space Grotesk', sans-serif" }}>
-        AI agents can now spend money.<br /><span className='text-[#ff9901] font-semibold'>Watchdog</span> makes sure they don't spend too much.
+        AI agents can now spend money.<br /> Watchdog makes sure they <span className='text-[#ff9901] font-semibold'>can't overspend.</span> 
       </p>
 
 
       {/* CTA */}
       <button
         onClick={onLaunch}
-        className="mb-14 px-8 py-4 rounded-lg font-semibold text-base shadow-sm hover:opacity-70 transition-opacity text-[#1B3A4B] text-md fade-up-1 hover:shadow-lg hover:-translate-y-0.5 hover:tarnsition-transform hover:scale-[1.02] transition-transform"
+        className="mb-12 px-8 py-4 rounded-lg font-semibold text-base shadow-sm hover:opacity-70 transition-opacity text-[#1B3A4B] text-md fade-up-1 hover:shadow-lg hover:-translate-y-0.5 hover:tarnsition-transform hover:scale-[1.02] transition-transform"
         style={{ background: '#ff9901' }}
       >
         Launch Demo
       </button>
 
       {/* Feature cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-2xl w-full mb-4">
-        <div className="rounded-xl border border-gray-300 px-3 py-2 flex items-center gap-2">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6170" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2l7 4v6c0 4.418-3.134 8.385-7 9.5C8.134 20.385 5 16.418 5 12V6l7-4z" />
-          </svg>
-          <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>Cap each purchase</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-2xl w-full mb-4 ">
+        <div className="group rounded-xl border border-gray-300 px-3 py-2 flex flex-col gap-1 cursor-default transition-all hover:border-[#2A6170]/40 hover:bg-white/60">
+          <div className="flex items-center justify-center gap-2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6170" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+              <path d="M12 2l7 4v6c0 4.418-3.134 8.385-7 9.5C8.134 20.385 5 16.418 5 12V6l7-4z" />
+            </svg>
+            <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>Cap each purchase</p>
+          </div>
+          <p className="text-xs text-[#1B3A4B]/60 max-h-0 overflow-hidden group-hover:max-h-8 transition-all duration-300 ease-in-out text-center">
+            Max XLM per single agent transaction
+          </p>
         </div>
 
-        <div className="rounded-xl border border-gray-300 px-3 py-2 flex items-center gap-2">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6170" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="12" width="4" height="9" rx="1" />
-            <rect x="10" y="7" width="4" height="14" rx="1" />
-            <rect x="17" y="3" width="4" height="18" rx="1" />
-          </svg>
-          <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>Set a daily limit</p>
+        <div className="group rounded-xl border border-gray-300 px-3 py-2 flex flex-col gap-1 cursor-default transition-all hover:border-[#2A6170]/40 hover:bg-white/60">
+          <div className="flex items-center justify-center gap-2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6170" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+              <rect x="3" y="12" width="4" height="9" rx="1" />
+              <rect x="10" y="7" width="4" height="14" rx="1" />
+              <rect x="17" y="3" width="4" height="18" rx="1" />
+            </svg>
+            <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>Set a daily limit</p>
+          </div>
+          <p className="text-xs text-[#1B3A4B]/60 max-h-0 overflow-hidden group-hover:max-h-8 transition-all duration-300 ease-in-out text-center">
+            Total spend cap across a 24-hour window
+          </p>
         </div>
 
-        <div className="rounded-xl border border-gray-300 px-3 py-2 flex items-center gap-2 sm:col-span-2 sm:justify-self-center lg:col-span-1 lg:justify-self-auto">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6170" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
-            <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
-          </svg>
-          <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>On-Chain rules enforcement</p>
+        <div className="group rounded-xl border border-gray-300 px-3 py-2 flex flex-col gap-1 cursor-default transition-all hover:border-[#2A6170]/40 hover:bg-white/60 sm:col-span-2 lg:col-span-1">
+          <div className="flex items-center justify-center gap-2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6170" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+              <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+            </svg>
+            <p className="font-semibold text-xs uppercase tracking-wide" style={{ color: '#1B3A4B' }}>On-Chain Rules</p>
+          </div>
+          <p className="text-xs text-[#1B3A4B]/60 max-h-0 overflow-hidden group-hover:max-h-8 transition-all duration-300 ease-in-out text-center">
+            Rules live in a Soroban contract, not the server
+          </p>
         </div>
       </div>
 
 
       {/* Footer */}
-      <p className="absolute bottom-6 text-xs" style={{ color: '#1B3A4B', opacity: 0.4 }}>
-        Leticia Azevedo - Built for Stellar Agents Hackathon 2026
-      </p>
+      <p className="absolute bottom-6 text-xs text-[#1B3A4B]/60">
+        <a href="https://www.letiazevedo.com" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[#1B3A4B] transition-colors duration-200"
+        > Leticia Azevedo </a>
+         - Built for Stellar Agents Hackathon 2026
+     </p>
     </div>
   )
 }
