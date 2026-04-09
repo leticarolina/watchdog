@@ -91,25 +91,25 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border px-5 py-5 flex flex-col sm:grid sm:grid-cols-2 lg:flex lg:flex-row lg:items-start gap-3" style={{ borderColor: '#1B3A4B14' }}>
+    <div className="bg-white rounded-xl shadow-sm border px-5 py-5 flex flex-col sm:grid sm:grid-cols-2 lg:flex lg:flex-row lg:items-stretch gap-3" style={{ borderColor: '#1B3A4B14' }}>
       {/* Basic Data */}
       <div className="flex flex-col items-center gap-1.5 lg:flex-1">
         <button
           onClick={runBasic}
           disabled={anyLoading}
-          className="w-full text-white font-medium rounded-lg px-4 py-3.5 flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+          className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-left"
           style={{ background: '#1B3A4B' }}
         >
-          {basicLoading ? (
-            <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <span>▶</span>
-          )}
-          Basic Data
+          <div className="flex items-center justify-between w-full">
+            <span className="text-xs uppercase tracking-widest opacity-70">Basic Analysis</span>
+            {basicLoading
+              ? <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <span className="text-base">▶</span>
+            }
+          </div>
+          <p className="text-xl font-bold">{basicPriceXLM} XLM</p>
         </button>
-        <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>
-          <strong>{basicPriceXLM} XLM</strong> · Basic Analysis
-        </p>
+        <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>Run a standard agent analysis</p>
       </div>
 
       {/* Expensive Data */}
@@ -117,18 +117,19 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
         <button
           onClick={runDeep}
           disabled={anyLoading}
-          className="w-full bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium rounded-lg px-4 py-3.5 flex items-center justify-center gap-2 transition-colors text-sm"
+          className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-left"
+          style={{ background: '#f85a0c'}}
         >
-          {deepLoading ? (
-            <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <span>⚠</span>
-          )}
-          Expensive Data
+          <div className="flex items-center justify-between w-full">
+            <span className="text-xs  uppercase tracking-widest opacity-70">Deep Analysis</span>
+            {deepLoading
+              ? <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <span className="text-base">⚠</span>
+            }
+          </div>
+          <p className="text-xl font-bold">{deepPriceXLM} XLM</p>
         </button>
-        <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>
-          <strong>{deepPriceXLM} XLM</strong> · Deep Analysis
-        </p>
+        <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>Triggers single-payment limit</p>
       </div>
 
       {/* Drain Attempt */}
@@ -136,49 +137,42 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
         <button
           onClick={runDrain}
           disabled={anyLoading}
-          className="w-full text-white font-medium rounded-lg px-4 py-3.5 flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-sm"
-          style={{ background: drainLoading ? '#b97d1a' : '#E99E33' }}
+          className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-left"
+          style={{ background: '#ffb913' }}
         >
-          {drainLoading ? (
-            <>
-              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              Running...
-            </>
-          ) : (
-            <>
-              <span>⚡</span>
-              Drain Attempt
-            </>
-          )}
+          <div className="flex items-center justify-between w-full">
+            <span className="text-xs uppercase tracking-widest opacity-70">Drain Budget</span>
+            {drainLoading
+              ? <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <span className="text-base">⚡</span>
+            }
+          </div>
+          <p className="text-xl font-bold">Auto-repeat</p>
         </button>
-        <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>
-          <strong>auto</strong> · Until exhausted
-        </p>
+        <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>Spams basic until daily limit hit</p>
       </div>
 
-      {/* Divider */}
+      {/* Divider + Reset Demo */}
       {onReset && (
         <>
           <div className="hidden lg:block w-px self-stretch mx-1" style={{ background: '#1B3A4B14' }} />
-
-          {/* Reset Demo */}
           <div className="flex flex-col items-center gap-1.5">
             <button
               onClick={onReset}
               disabled={anyLoading}
-              className="w-full lg:w-auto flex items-center justify-center gap-1.5 border text-sm font-medium rounded-lg px-4 py-3.5 transition-opacity hover:opacity-75 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-              style={{ borderColor: '#2A617060', color: '#2A6170' }}
+              className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-left whitespace-nowrap"
+              style={{ background: '#95ba9c' }}
             >
-              {resetLoading ? (
-                <span className="inline-block w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#2A6170', borderTopColor: 'transparent' }} />
-              ) : (
-                <span>↺</span>
-              )}
-              Reset Demo
+              <div className="flex items-center justify-between w-full">
+                <span className="text-xs uppercase tracking-widest opacity-70">Reset Demo</span>
+                {resetLoading
+                  ? <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <span className="text-base">↺</span>
+                }
+              </div>
+              <p className="text-xl font-bold">New Agent</p>
             </button>
-            <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>
-              switch agent
-            </p>
+            <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>Switch to a fresh 24h window</p>
           </div>
         </>
       )}

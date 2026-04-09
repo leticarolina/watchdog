@@ -35,53 +35,67 @@ export function ContractState({ maxSinglePaymentXLM, dailyBudgetXLM, spentXLM, a
         Contract State
       </h2>
 
-      {/* Limit cards */}
-      <div className="flex flex-col gap-3">
-        <div className="rounded-lg p-4" style={{ background: '#1B3A4B08' }}>
-          <p className="text-xs mb-1.5" style={{ color: '#1B3A4B', opacity: 0.5 }}>Max Single Payment</p>
-          <p className="text-2xl font-bold tabular-nums" style={{ color: '#1B3A4B' }}>
-            {maxSinglePaymentXLM}
-            <span className="text-base font-normal ml-1" style={{ opacity: 0.5 }}>XLM</span>
-          </p>
-        </div>
-        <div className="rounded-lg p-4" style={{ background: '#1B3A4B08' }}>
-          <p className="text-xs mb-1.5" style={{ color: '#1B3A4B', opacity: 0.5 }}>Daily Budget</p>
-          <p className="text-2xl font-bold tabular-nums" style={{ color: '#1B3A4B' }}>
-            {dailyBudgetXLM}
-            <span className="text-base font-normal ml-1" style={{ opacity: 0.5 }}>XLM</span>
-          </p>
+      {/* Contract Rules */}
+      <div className="flex flex-col gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#1B3A4B', opacity: 0.45 }}>
+          Rules
+        </p>
+        <div className="flex gap-2">
+          <div className="flex-1 rounded-lg px-3 py-3 flex flex-col gap-0.5 border-l-4" style={{ background: '#B91C1C12', borderColor: '#B91C1C' }}>
+            <span className="text-xs font-medium" style={{ color: '#B91C1C', opacity: 0.8 }}>Max per payment</span>
+            <span className="text-2xl font-bold tabular-nums leading-tight" style={{ color: '#B91C1C' }}>
+              {maxSinglePaymentXLM}
+              <span className="text-sm font-normal ml-1" style={{ opacity: 0.6 }}>XLM</span>
+            </span>
+          </div>
+          <div className="flex-1 rounded-lg px-3 py-3 flex flex-col gap-0.5 border-l-4" style={{ background: '#C47A1512', borderColor: '#C47A15' }}>
+            <span className="text-xs font-medium" style={{ color: '#C47A15', opacity: 0.9 }}>Daily limit</span>
+            <span className="text-2xl font-bold tabular-nums leading-tight" style={{ color: '#C47A15' }}>
+              {dailyBudgetXLM}
+              <span className="text-sm font-normal ml-1" style={{ opacity: 0.6 }}>XLM</span>
+            </span>
+          </div>
         </div>
       </div>
 
       <div className="border-t" style={{ borderColor: '#1B3A4B12' }} />
 
-      {/* Spent today */}
-      <div>
-        <div className="flex items-baseline justify-between mb-2">
-          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#1B3A4B', opacity: 0.45 }}>
-            Spent Today
-          </p>
-          <span className="text-sm font-bold tabular-nums" style={{ color: '#1B3A4B', opacity: 0.6 }}>
-            {spentXLM.toFixed(1)} / {dailyBudgetXLM} XLM
-          </span>
-        </div>
-        <div className="h-3 rounded-full overflow-hidden mb-3" style={{ background: '#1B3A4B12' }}>
+      {/* Daily Budget usage */}
+      <div className="flex flex-col gap-2.5">
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#1B3A4B', opacity: 0.45 }}>
+          Daily Budget
+        </p>
+
+        {/* Progress bar */}
+        <div className="h-5 rounded-full overflow-hidden" style={{ background: '#1B3A4B12' }}>
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{ width: `${usedPct * 100}%`, background: barColor }}
           />
         </div>
-        <p className="text-xl font-bold tabular-nums" style={{ color: remainingColor }}>
-          {remaining.toFixed(1)} XLM
-          <span className="text-sm font-normal ml-1.5" style={{ color: '#1B3A4B', opacity: 0.45 }}>remaining</span>
-        </p>
+
+        {/* Spent ← → Remaining anchors */}
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs mb-0.5" style={{ color: '#1B3A4B', opacity: 0.45 }}>Spent</p>
+            <p className="text-xl font-bold tabular-nums" style={{ color: '#1B3A4B' }}>
+              {spentXLM.toFixed(1)} <span className="text-sm font-normal opacity-50">XLM</span>
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs mb-0.5" style={{ color: '#1B3A4B', opacity: 0.45 }}>Remaining</p>
+            <p className="text-xl font-bold tabular-nums" style={{ color: remainingColor }}>
+              {remaining.toFixed(1)} <span className="text-sm font-normal" style={{ color: '#1B3A4B', opacity: 0.5 }}>XLM</span>
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="border-t" style={{ borderColor: '#1B3A4B12' }} />
 
       {/* Agent */}
       {agent && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#1B3A4B', opacity: 0.4 }}>
             Agent
           </p>

@@ -53,7 +53,7 @@ For the payment flow
 ## Demo Flow
 
 **Contract limits:** 6 XLM max single payment, 10 XLM daily budget
-**Endpoints:** `/analysis/basic` = 1 XLM, `/analysis/deep` = 7 XLM
+**Endpoints:** `/analysis/basic` = 3 XLM, `/analysis/deep` = 7 XLM
 
 ### Step 1 — No payment header
 

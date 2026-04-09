@@ -27,7 +27,7 @@ function makeId(): string {
 
 function LandingPage({ onLaunch }: { onLaunch: () => void }) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6" style={{ background: '#F4F1EB' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6" style={{ background: '#fef5e1'}}>
       {/* Logo */}
       <div className="flex flex-col items-center fade-up-0">
         {/* <img src={watchdogIcon} alt="Watchdog icon" className="w-80 h-80 object-contain" />
@@ -36,22 +36,22 @@ function LandingPage({ onLaunch }: { onLaunch: () => void }) {
       </div>
 
       {/* Tagline */}
-      <p className="text-xl sm:text-2xl mb-6 mt-6 text-center font-semibold tracking-tight fade-up-1" style={{ color: '#1B3A4B', fontFamily: "'Space Grotesk', sans-serif" }}>
-        AI agents can now spend money.<br /><span className='text-[#e99e33]'>Watchdog</span> makes sure they don't spend too much.
+      <p className="sm:text-xl mb-6 mt-6 text-center  tracking-tight fade-up-1" style={{ color: '#1B3A4B', fontFamily: "'Space Grotesk', sans-serif" }}>
+        AI agents can now spend money.<br /><span className='text-[#ff9901] font-semibold'>Watchdog</span> makes sure they don't spend too much.
       </p>
 
 
       {/* CTA */}
       <button
         onClick={onLaunch}
-        className="mb-14 px-9 py-5 rounded-lg font-semibold text-base shadow-sm hover:opacity-90 transition-opacity text-[#1B3A4B] text-md fade-up-1"
-        style={{ background: '#e99e33' }}
+        className="mb-14 px-8 py-4 rounded-lg font-semibold text-base shadow-sm hover:opacity-70 transition-opacity text-[#1B3A4B] text-md fade-up-1 hover:shadow-lg hover:-translate-y-0.5 hover:tarnsition-transform hover:scale-[1.02] transition-transform"
+        style={{ background: '#ff9901' }}
       >
         Launch Demo
       </button>
 
       {/* Feature cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-2xl w-full ">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-2xl w-full mb-4">
         <div className="rounded-xl border border-gray-300 px-3 py-2 flex items-center gap-2">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6170" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2l7 4v6c0 4.418-3.134 8.385-7 9.5C8.134 20.385 5 16.418 5 12V6l7-4z" />
@@ -179,7 +179,7 @@ export default function App() {
     }
   }
 
-  const basicPriceXLM = config ? toXLM(config.endpointPricing.basic) : 2
+  const basicPriceXLM = config ? toXLM(config.endpointPricing.basic) : 3
   const deepPriceXLM = config ? toXLM(config.endpointPricing.deep) : 7
   const maxSinglePaymentXLM = config ? toXLM(config.contractLimits.maxSinglePayment) : 6
   const dailyBudgetXLM = config ? toXLM(config.contractLimits.dailyBudget) : 10
@@ -189,7 +189,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen lg:h-screen flex flex-col lg:overflow-hidden" style={{ background: '#F4F1EB' }}>
+    <div className="min-h-screen lg:h-screen flex flex-col lg:overflow-hidden" style={{ background: '#F4F1EB'  }}>
       {/* Navbar */}
       <header className="px-4 sm:px-6 lg:px-8 mt-2 mb-4 shrink-0">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -208,7 +208,7 @@ export default function App() {
             target="_blank"
             rel="noopener noreferrer"
             className="hidden lg:flex items-center gap-1.5 border text-sm font-medium rounded-lg px-4 py-2 transition-opacity hover:opacity-75"
-            style={{ borderColor: '#2A617040', color: '#2A6170', background: '#2A617008' }}
+            style={{ borderColor: '#2A617040', color: '#2A6170', background: '#dfe8f2' }}
           >
             Smart Contract ↗
           </a>
