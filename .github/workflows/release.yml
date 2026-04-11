@@ -13,7 +13,7 @@ jobs:
     with:
       release_name: ${{ github.ref_name }}
       release_description: 'Watchdog contract release'
-      relative_path: '["contracts/watchdog-contract"]'
+      relative_path: 'contracts/watchdog-contract'
       package: 'watchdog-contract'
     secrets:
       release_token: ${{ secrets.GITHUB_TOKEN }}
