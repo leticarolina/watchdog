@@ -1,4 +1,4 @@
-<h1>Watchdog<img alt="logo" src="frontend/public/watchdog.png" height="32" style="vertical-align:middle;" /></h1>
+<h1><img alt="logo" src="frontend/public/watchdog.png" height="32" style="vertical-align:middle;" />Watchdog</h1>
 
 A spending safety layer for AI agents, so they can pay for things autonomously without going off the rails.
 
