@@ -12,7 +12,7 @@ interface AgentPanelProps {
 }
 
 const DRAIN_MAX_ATTEMPTS = 6
-const DRAIN_DELAY_MS = 4000
+const DRAIN_DELAY_MS = 5000
 
 export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, onBlocked, onReset, resetLoading }: AgentPanelProps) {
   const [basicLoading, setBasicLoading] = useState(false)

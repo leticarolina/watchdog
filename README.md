@@ -28,11 +28,8 @@ Every decision is enforced on-chain, not in a server. The agent cannot negotiate
 1. User triggers agent → Agent requests paid service via x402 protocol.
 2. Server issues 402 Payment Required challenge
 3. Watchdog contract evaluates 2 rules (simulateTransaction) and decides.
-4. If APPROVED:
-MPP SDK executes real XLM payment on Stellar testnet
-Server returns data + two TX hashes (XLM transfer + Watchdog event)
-5. If BLOCKED:
-No payment executed and reason returned: SinglePaymentLimitExceeded | DailyBudgetExceeded
+4. **APPROVED** — MPP SDK executes real XLM payment → server returns data + two TX hashes
+5. **BLOCKED** — no payment executed → reason returned: `SinglePaymentLimitExceeded` or `DailyBudgetExceeded`
 
 Every approved payment produces two verifiable transactions on Stellar Explorer. One for the XLM transfer, one for the Watchdog contract call.
 
@@ -127,7 +124,7 @@ The live demo at [watchdog-agent.vercel.app](https://watchdog-agent.vercel.app) 
 
 | Button | What happens |
 | -------- | ------------- |
-| **Basic Data** | Sends 1 XLM → approved → real XLM moves on-chain |
+| **Basic Data** | Sends 3 XLM → approved → real XLM moves on-chain |
 | **Expensive Data** | Tries 7 XLM → exceeds 6 XLM single limit → `SinglePaymentLimitExceeded` |
 | **Drain Attempt** | Auto-fires basic requests until the 10 XLM daily cap is exhausted → `DailyBudgetExceeded` |
 | **Reset Demo** | Rotates to the next agent in the pool (fresh 24h window) |
@@ -173,7 +170,7 @@ cd agent && npm install && npm run dev
 cd frontend && npm install && npm run dev
 ```
 
-The frontend connects to the backend at `http://localhost:3000` by default. Set `VITE_API_BASE` to point at a deployed backend.
+The frontend connects to the backend at `http://localhost:3000` by default. Set `VITE_API_URL` to point at a deployed backend.
 
 ---
 

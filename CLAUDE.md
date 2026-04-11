@@ -13,15 +13,15 @@ Agent pays for analysis via x402 → Watchdog Soroban contract evaluates 2 rules
 
 ## Contract
 
-- Deployed: `CDVNQCBS26ATIJ7FBQZTPV4UDFLCM2TKZ4E77ONRXU4SN2BCNQRSRESC`
+- Deployed: `CDK4XFYOHDCJTRXNM4I56ZYUEVLQIRLRLOT7R6XRRYSGPBTGXXSB7DVH`
 - Network: Stellar testnet
 - Function: `request_payment(agent, amount)` → Ok(true) or WatchdogError
 - Key: `mykeystellar`
 
 ## The 2 Rules
 
-- Rule 1: amount > 20_000_000 stroops (2 XLM) → SinglePaymentLimitExceeded
-- Rule 2: cumulative_24h + amount > 40_000_000 stroops (4 XLM) → DailyBudgetExceeded
+- Rule 1: amount > 30_000_000 stroops (3 XLM) → SinglePaymentLimitExceeded
+- Rule 2: cumulative_24h + amount > 100_000_000 stroops (10 XLM) → DailyBudgetExceeded
 
 ## Tech Stack
 
@@ -53,7 +53,7 @@ For the payment flow
 ## Demo Flow
 
 **Contract limits:** 6 XLM max single payment, 10 XLM daily budget
-**Endpoints:** `/analysis/basic` = 3 XLM, `/analysis/deep` = 7 XLM
+**Endpoints:** `/analysis/basic` = 1 XLM, `/analysis/deep` = 7 XLM
 
 ### Step 1 — No payment header
 

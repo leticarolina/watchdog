@@ -6,7 +6,7 @@ This document describes the threat model, design decisions, and known limitation
 
 ## Threat Model
 
-Watchdog is designed to protect against autonomous agent spending anomalies. The primary threat is not a malicious human attacker,it's an agent that behaves incorrectly due to compromise, misconfiguration, or runaway execution.
+Watchdog is designed to protect against autonomous agent spending anomalies. The primary threat is not a malicious human attacker, it's an agent that behaves incorrectly due to compromise, misconfiguration, or runaway execution.
 
 ### Threats Watchdog Protects Against
 
@@ -36,11 +36,11 @@ Per-agent limits require an additional initialization step per agent and increas
 
 Each rule adds state, storage reads, and attack surface. A velocity/cooldown rule was evaluated and rejected because legitimate agents may request data rapidly and a hard cooldown would create false positives. Two rules cover the primary threat vectors.
 
-### owner-updatable limits
+### Owner-updatable limits
 
-Hardcoded limits would require a contract redeploy to adjust thresholds. `set_limits` allows the owner to tune risk tolerance post-deploy without disrupting agent state. 
+Hardcoded limits would require a contract redeploy to adjust thresholds. `set_limits` allows the owner to tune risk tolerance post-deploy without disrupting agent state.
 
-### 24h window reset
+### 24h Window Reset
 
 The contract resets an agent's spending window on the first `request_payment` call after the window expires. This eliminates an entire class of keeper/oracle dependencies and makes the contract fully self-contained.
 
@@ -60,26 +60,28 @@ The contract resets an agent's spending window on the first `request_payment` ca
 
 ## Known Limitations
 
-- **Testnet only.** Watchdog is currently deployed on Stellar testnet. Mainnet deployment requires additional audit and limit calibration.
+- **Testnet only.** Watchdog is currently deployed on Stellar testnet.
 - **No per-agent initialization.** All agents share the same limits. An agent with different risk requirements cannot have custom limits in v1.
-- **Owner key is a single point of failure.** There is no multisig or timelock on `set_limits`. A compromised owner key can change limits immediately.
-- **State is not migrateable.** If the contract is redeployed, all agent spending state resets. There is no upgrade path in v1.
-- **Events on blocked calls.** When a payment is blocked, the contract reverts before the transaction is submitted. The block event is emitted during simulation but does not land on-chain.
+- **Owner key is a single point of failure.** A compromised owner key can change limits immediately.
+- **Events on blocked calls.** When a payment is blocked, the contract reverts before the transaction is submitted.
 
 ---
 
 ## Responsible Disclosure
 
 This contract has not been formally audited. It was built for the Stellar Agents Hackathon 2026.
-If you find a vulnerability, please contact:
-
-- Twitter: [@letiweb3](https://x.com/letiweb3)
-- GitHub: [github.com/leticarolina/watchdog](https://github.com/leticarolina/watchdog)
-
----
 
 ## Contract
 
 **Deployed:** `CDK4XFYOHDCJTRXNM4I56ZYUEVLQIRLRLOT7R6XRRYSGPBTGXXSB7DVH`
 **Network:** Stellar testnet
 **Language:** Rust / Soroban SDK v25
+
+---
+
+Author:
+
+Leticia Azevedo
+
+- Twitter: [@letiweb3](https://x.com/letiweb3)
+- GitHub: [github.com/leticarolina/watchdog](https://github.com/leticarolina/watchdog)
