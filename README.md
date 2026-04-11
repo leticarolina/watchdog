@@ -1,9 +1,10 @@
-# Watchdog
+<h1>Watchdog<img alt="logo" src="frontend/public/watchdog.png" height="32" style="vertical-align:middle;" /></h1>
 
 A spending safety layer for AI agents, so they can pay for things autonomously without going off the rails.
 
-- [Live Demo](https://watchdog-agent.vercel.app)
+- [Live Site](https://watchdog-agent.vercel.app)
 - [Contract](https://stellar.expert/explorer/testnet/contract/CDK4XFYOHDCJTRXNM4I56ZYUEVLQIRLRLOT7R6XRRYSGPBTGXXSB7DVH)
+- [Demo Video](https://www.youtube.com/watch?v=KBViqt0M3Yg&t=13s)
 
 ---
 
@@ -38,7 +39,7 @@ Every approved payment produces two verifiable transactions on Stellar Explorer.
 ## The 2 Rules
 
 **Rule 1 — Single Payment Limit**
-No single payment can exceed the configured maximum. If an agent suddenly tries to spend 50 XLM on one request when it normally spends 2, that's a red flag and possibly hijacked agent, runaway loop, or misconfigured call. Blocked immediately.
+No single payment can exceed the configured maximum. If an agent suddenly tries to spend 50 XLM on one request when it normally spends 2, that's possibly hijacked agent, runaway loop, or misconfigured call. Blocked immediately.
 
 **Rule 2 — Daily Budget Cap**
 Cumulative spend per agent resets every 24 hours. Even if every individual payment looks safe, Watchdog tracks the running total. A compromised agent making 100 small payments still hits the wall.
@@ -52,7 +53,7 @@ The 24h window resets automatically per agent based on ledger timestamp.
 ## Why On-Chain?
 
 - **Tamper-proof.** Limits live in a Soroban contract, not a database you can update with a SQL query. The agent cannot override them; neither can a compromised backend.
-- **No intermediary.** Agents pay directly from their wallet — no bank, no Stripe, no payment processor. The only thing between the agent and the ledger is the contract.
+- **No intermediary.** Agents pay directly from their wallet - no bank, no Stripe, no payment processor. The only thing between the agent and the ledger is the contract.
 - **Composable.** Any agent on Stellar can call `request_payment`. Watchdog is a primitive, not a product so any developer can build on top of it.
 - **Auditable.** Every approval emits an on-chain event (`watchdog/approved`). The full spending history of any agent is verifiable by anyone.
 
@@ -118,7 +119,7 @@ test_get_agent_state_after_24h_reset
 
 ## Demo
 
-The live demo at [watchdog-agent.vercel.app](https://watchdog-agent.vercel.app) runs against a real TypeScript server on the backend, making real XLM payments on Stellar testnet.
+The live demo at [watchdog website](https://watchdog-agent.vercel.app) runs against a real TypeScript server on the backend, making real XLM payments on Stellar testnet.
 
 **Demo limits:** 6 XLM max single payment · 10 XLM daily budget per agent
 
@@ -150,8 +151,25 @@ Each approved transaction links to two Stellar Explorer entries — the XLM tran
 - **Per-agent configurable limits** — each agent sets its own risk parameters
 - **Multi-token support** — USDC, AQUA, any Stellar asset
 - **Agent reputation scoring** — on-chain track record influences allowed limits
-- **npm SDK** — `npm install @watchdog/stellar` → integrate in 5 lines
-- **Agent framework plugins** — LangChain, CrewAI, AutoGPT native integrations
+- **npm SDK** — `npm install @watchdog/stellar` → The goal is to make watchdog possible to integrate in any agent. The SDK will handle all the x402 payment flow, contract calls, and event parsing so agent developers can adopt watchdog without needing to understand Soroban or Stellar primitives.
+
+---
+
+## Why This Matters
+
+The agent economy is already here. Agents are buying API calls, spinning up compute, and transacting on-chain today. Every one of them needs a spending policy that is enforceable, auditable, and tamper-proof.
+
+Watchdog is that primitive. The same way ERC-20 `approve` patterns let protocols spend on your behalf safely, Watchdog gives agent developers a standard, composable safety layer they can adopt without building it themselves.
+
+---
+
+## Origin
+
+I built LockFi, a security vault that watches for suspicious withdrawal patterns in DeFi and delays them before funds leave.
+
+After building it I kept thinking: this problem isn't unique to DeFi vaults. Anywhere money moves autonomously, you need a behavioral layer watching it.
+
+Agents are the next version of that problem. They have wallets. They spend. Nobody's watching. Watchdog is LockFi's insight applied to the agent economy.
 
 ---
 
@@ -171,24 +189,6 @@ cd frontend && npm install && npm run dev
 ```
 
 The frontend connects to the backend at `http://localhost:3000` by default. Set `VITE_API_URL` to point at a deployed backend.
-
----
-
-## Why This Matters
-
-The agent economy is already here. Agents are buying API calls, spinning up compute, and transacting on-chain today. Every one of them needs a spending policy that is enforceable, auditable, and tamper-proof.
-
-Watchdog is that primitive. The same way ERC-20 `approve` patterns let protocols spend on your behalf safely, Watchdog gives agent developers a standard, composable safety layer they can adopt without building it themselves.
-
----
-
-## Origin
-
-I built LockFi, a security vault that watches for suspicious withdrawal patterns in DeFi and delays them before funds leave.
-
-After building it I kept thinking: this problem isn't unique to DeFi vaults. Anywhere money moves autonomously, you need a behavioral layer watching it.
-
-Agents are the next version of that problem. They have wallets. They spend. Nobody's watching. Watchdog is LockFi's insight applied to the agent economy.
 
 ---
 
