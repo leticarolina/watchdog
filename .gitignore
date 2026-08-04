@@ -1,0 +1,13 @@
+.env
+*.env
+.claude/
+.env.*
+!.env.example
+# Node
+node_modules/
+
+# Rust
+target/
+
+# Mac
+.DS_Store
