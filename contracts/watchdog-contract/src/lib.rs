@@ -1,16 +1,26 @@
 //! # Watchdog
 //! **Author:** Leticia Azevedo ([git](https://github.com/leticarolina))
 //!
-//! Watchdog is a behavioral risk layer for autonomous agent payments on Stellar.
-//! Acts between an agent and the payment execution, watching for spending behavior before XLM moves on-chain.
+//! Watchdog is a custody-based spending enforcement layer for autonomous
+//! agent payments on Stellar. The contract itself holds funds and is the only party
+//! that can move them out, an agent can only *propose* a payment via `request_payment`,
+//! it never holds or directly transfers the funds it spends.
 //!
-//! ## Rules
-//! Every `request_payment` call is evaluated against two behavioral rules:
-//! 1. **Single Payment Limit** — no single payment may exceed the configured limit
-//! 2. **Budget Cap** — cumulative spend per agent may not exceed the budget cap within the configured window
+//! ## Rules evaluated on every `request_payment` call, in order
+//! 1. **Amount validity** — amount must be positive
+//! 2. **Pause check** — no payments execute while the owner has paused the contract
+//! 3. **Single payment ceiling** — no single payment may exceed `max_single_payment`
+//! 4. **Rolling budget cap** — cumulative spend per agent may not exceed
+//! within the current window.
+//! 5. **Recipient allowlist** — funds may only be paid to owner-approved addresses
+//! 6. **Solvency** — the contract must hold enough XLM to cover the payout
+//!
+//! If all checks pass, the contract transfers `amount` of XLM to `recipient` 
 //!
 //! ## Configuration
-//! Limits are set by the owner at deploy time via `initialize()` and can be updated anytime via `set_limits()`
+//! Owner, limits, token, and window are set once via `initialize()`. Limits, window,
+//! allowlist entries, and pause state are all updatable afterward via their
+//! respective `set_*` owner-only functions.
 
 #![no_std]
 use soroban_sdk::{
