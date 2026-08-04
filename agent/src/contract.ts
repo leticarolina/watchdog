@@ -10,7 +10,7 @@ import {
   Keypair,
 } from '@stellar/stellar-sdk';
 
-const CONTRACT_ID = 'CDK4XFYOHDCJTRXNM4I56ZYUEVLQIRLRLOT7R6XRRYSGPBTGXXSB7DVH';
+const CONTRACT_ID = 'CBA2LXX3FZ5TN5HHVGSJ47AUF3ZCLS6NG6AKE2ZZEHC5LEJQLJU6RBT2';
 const RPC_URL = 'https://soroban-testnet.stellar.org';
 
 // valid dummy source for simulation only
@@ -19,16 +19,31 @@ const DUMMY_SOURCE = 'GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF';
 const server = new rpc.Server(RPC_URL);
 const contract = new Contract(CONTRACT_ID);
 
-export async function getLimits(): Promise<{
+/** Maps a WatchdogError contract code (1-9) to its named string. */
+function mapContractError(err: string): string {
+  if (err.includes('Error(Contract, #1)')) return 'SinglePaymentLimitExceeded';
+  if (err.includes('Error(Contract, #2)')) return 'BudgetCapExceeded';
+  if (err.includes('Error(Contract, #3)')) return 'NotInitialized';
+  if (err.includes('Error(Contract, #4)')) return 'Unauthorized';
+  if (err.includes('Error(Contract, #5)')) return 'AlreadyInitialized';
+  if (err.includes('Error(Contract, #6)')) return 'InsufficientVaultBalance';
+  if (err.includes('Error(Contract, #7)')) return 'RecipientNotAllowed';
+  if (err.includes('Error(Contract, #8)')) return 'ContractPaused';
+  if (err.includes('Error(Contract, #9)')) return 'InvalidAmount';
+  return `ContractError: ${err.split('\n')[0]}`;
+}
+
+export async function getConfig(): Promise<{
   success: boolean;
   maxSinglePayment?: number;
-  dailyBudget?: number;
+  budgetCap?: number;
+  windowSeconds?: number;
   error?: string;
 }> {
   try {
     const sourceAccount = new Account(DUMMY_SOURCE, '0');
 
-    const operation = contract.call('get_limits');
+    const operation = contract.call('get_config');
 
     const tx = new TransactionBuilder(sourceAccount, {
       fee: '100',
@@ -54,12 +69,17 @@ export async function getLimits(): Promise<{
       return { success: false, error: 'MissingReturnValue' };
     }
 
-    const [maxSinglePayment, dailyBudget] = scValToNative(retval) as [string, string];
+    const [maxSinglePayment, budgetCap, windowSeconds] = scValToNative(retval) as [
+      string,
+      string,
+      string,
+    ];
 
     return {
       success: true,
       maxSinglePayment: Number(maxSinglePayment),
-      dailyBudget: Number(dailyBudget),
+      budgetCap: Number(budgetCap),
+      windowSeconds: Number(windowSeconds),
     };
   } catch (err: any) {
     return { success: false, error: err.message };
@@ -68,8 +88,8 @@ export async function getLimits(): Promise<{
 
 export async function getAgentState(agent: string): Promise<{
   success: boolean;
-  cumulative24h?: number;
-  dayStart?: number;
+  cumulativeSpent?: number;
+  windowStart?: number;
   error?: string;
 }> {
   try {
@@ -106,28 +126,36 @@ export async function getAgentState(agent: string): Promise<{
 
     const rawState = scValToNative(retval);
 
+    // Defensive against either the raw Rust field names (snake_case, as
+    // returned by scValToNative) or a camelCase shape, in case the SDK's
+    // conversion behavior changes.
     const state = rawState as {
-      cumulative_24h?: string | number | bigint;
-      day_start?: string | number | bigint;
-      cumulative24h?: string | number | bigint;
-      dayStart?: string | number | bigint;
+      cumulative_spent?: string | number | bigint;
+      window_start?: string | number | bigint;
+      cumulativeSpent?: string | number | bigint;
+      windowStart?: string | number | bigint;
     };
 
-    const cumulative = state.cumulative_24h ?? state.cumulative24h ?? 0;
-    const dayStart = state.day_start ?? state.dayStart ?? 0;
+    const cumulativeSpent = state.cumulative_spent ?? state.cumulativeSpent ?? 0;
+    const windowStart = state.window_start ?? state.windowStart ?? 0;
 
     return {
       success: true,
-      cumulative24h: Number(cumulative),
-      dayStart: Number(dayStart),
+      cumulativeSpent: Number(cumulativeSpent),
+      windowStart: Number(windowStart),
     };
   } catch (err: any) {
     return { success: false, error: err.message };
   }
 }
 
-export async function checkPayment(
+/**
+ * Simulates request_payment without submitting — used to pre-check whether a
+ * payment would be approved before asking the agent for a signed credential.
+ */
+export async function simulateRequestPayment(
   agent: string,
+  recipient: string,
   amount: number,
 ): Promise<{ approved: boolean; error?: string }> {
   const sourceAccount = new Account(DUMMY_SOURCE, '0');
@@ -135,6 +163,7 @@ export async function checkPayment(
   const operation = contract.call(
     'request_payment',
     Address.fromString(agent).toScVal(),
+    Address.fromString(recipient).toScVal(),
     nativeToScVal(BigInt(amount), { type: 'i128' }),
   );
 
@@ -153,39 +182,34 @@ export async function checkPayment(
   }
 
   if (rpc.Api.isSimulationError(result)) {
-    const err = result.error;
-
-    if (err.includes('Error(Contract, #1)')) {
-      return { approved: false, error: 'SinglePaymentLimitExceeded' };
-    }
-
-    if (err.includes('Error(Contract, #2)')) {
-      return { approved: false, error: 'DailyBudgetExceeded' };
-    }
-
-    return { approved: false, error: `ContractError: ${err.split('\n')[0]}` };
+    return { approved: false, error: mapContractError(result.error) };
   }
 
   return { approved: false, error: 'SimulationFailed' };
 }
 
-export async function recordPaymentState(
-  agent: string,
+/**
+ * Signs and submits request_payment using the agent's own keypair. The
+ * contract requires agent.require_auth(), so the agent address passed to the
+ * call is derived from the signing keypair itself — the caller can't submit
+ * on behalf of a different agent address than the one it's signing with.
+ *
+ * On success this call IS the payment: the contract transfers `amount` XLM
+ * to `recipient` itself, so there is no separate transfer step afterward.
+ */
+export async function executeRequestPayment(
+  agentSecretKey: string,
+  recipient: string,
   amount: number,
 ): Promise<{ success: boolean; hash?: string; error?: string }> {
   try {
-    const secretKey = process.env.STELLAR_SECRET_KEY;
-
-    if (!secretKey) {
-      return { success: false, error: 'Missing STELLAR_SECRET_KEY' };
-    }
-
-    const keypair = Keypair.fromSecret(secretKey);
+    const keypair = Keypair.fromSecret(agentSecretKey);
     const account = await server.getAccount(keypair.publicKey());
 
     const operation = contract.call(
       'request_payment',
-      Address.fromString(agent).toScVal(),
+      Address.fromString(keypair.publicKey()).toScVal(),
+      Address.fromString(recipient).toScVal(),
       nativeToScVal(BigInt(amount), { type: 'i128' }),
     );
 
@@ -200,17 +224,7 @@ export async function recordPaymentState(
     const sim = await server.simulateTransaction(tx);
 
     if (rpc.Api.isSimulationError(sim)) {
-      const err = sim.error;
-
-      if (err.includes('Error(Contract, #1)')) {
-        return { success: false, error: 'SinglePaymentLimitExceeded' };
-      }
-
-      if (err.includes('Error(Contract, #2)')) {
-        return { success: false, error: 'DailyBudgetExceeded' };
-      }
-
-      return { success: false, error: err };
+      return { success: false, error: mapContractError(sim.error) };
     }
 
     if (!rpc.Api.isSimulationSuccess(sim)) {

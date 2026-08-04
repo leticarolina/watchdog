@@ -1,8 +1,9 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors'
+import { Keypair } from '@stellar/stellar-sdk';
 
-import { getLimits, recordPaymentState, getAgentState, checkPayment } from './contract.js';
+import { getConfig, getAgentState, simulateRequestPayment } from './contract.js';
 import { PRICING } from './pricing.js';
 import { requirePayment } from './middleware/payment.js';
 import { runAnalysis } from './client.js';
@@ -28,6 +29,13 @@ if (!process.env.AGENT_ADDRESS) {
 const agentPool = (process.env.AGENT_POOL ?? '').split(',').filter(Boolean);
 let currentAgentIndex = 0;
 
+/** Derive the server's Stellar public key (= payment recipient) from env. Mirrors payment.ts's own helper. */
+function getRecipient(): string {
+  const secretKey = process.env.STELLAR_SECRET_KEY;
+  if (!secretKey) throw new Error('STELLAR_SECRET_KEY not set');
+  return Keypair.fromSecret(secretKey).publicKey();
+}
+
 /* ─────────────────────────────────────────────
    BASIC ANALYSIS
 ───────────────────────────────────────────── */
@@ -38,25 +46,14 @@ app.get(
   async (_req, res) => {
     console.log('[basic] hit');
 
-    const paymentTxHash = res.locals.paymentReceipt?.txHash;
-
-    const watchdog = await recordPaymentState(process.env.AGENT_ADDRESS!, PRICING.basic);
-
-    if (!watchdog.success) {
-      console.log('[basic] WATCHDOG STATE WRITE FAILED:', watchdog.error);
-
-      return res.status(500).json({
-        error: watchdog.error,
-      });
-    }
-
-    console.log('[basic] APPROVED — paymentTxHash:', paymentTxHash);
-    console.log('[basic] WATCHDOG STATE WRITTEN — watchdogTxHash:', watchdog.hash);
+    // Settlement already happened inside requirePayment() — request_payment
+    // both verified and paid out in the same call, so there's nothing left
+    // to record here.
+    console.log('[basic] APPROVED — txHash:', res.locals.paymentReceipt?.txHash);
 
     return res.json({
       success: true,
-      paymentTxHash,
-      watchdogTxHash: watchdog.hash,
+      txHash: res.locals.paymentReceipt?.txHash,
     });
   },
 );
@@ -71,25 +68,14 @@ app.get(
   async (_req, res) => {
     console.log('[deep] hit');
 
-    const paymentTxHash = res.locals.paymentReceipt?.txHash;
-
-    const watchdog = await recordPaymentState(process.env.AGENT_ADDRESS!, PRICING.deep);
-
-    if (!watchdog.success) {
-      console.log('[deep] WATCHDOG STATE WRITE FAILED:', watchdog.error);
-
-      return res.status(500).json({
-        error: watchdog.error,
-      });
-    }
-
-    console.log('[deep] APPROVED — paymentTxHash:', paymentTxHash);
-    console.log('[deep] WATCHDOG STATE WRITTEN — watchdogTxHash:', watchdog.hash);
+    // Settlement already happened inside requirePayment() — request_payment
+    // both verified and paid out in the same call, so there's nothing left
+    // to record here.
+    console.log('[deep] APPROVED — txHash:', res.locals.paymentReceipt?.txHash);
 
     return res.json({
       success: true,
-      paymentTxHash,
-      watchdogTxHash: watchdog.hash,
+      txHash: res.locals.paymentReceipt?.txHash,
     });
   },
 );
@@ -131,18 +117,19 @@ app.get('/run/deep', async (_req, res) => {
 app.get('/config', async (_req, res) => {
   console.log('[config] hit');
 
-  const limits = await getLimits();
+  const config = await getConfig();
 
-  if (!limits.success) {
+  if (!config.success) {
     return res.status(500).json({
-      error: limits.error,
+      error: config.error,
     });
   }
 
   return res.json({
     contractLimits: {
-      maxSinglePayment: limits.maxSinglePayment,
-      dailyBudget: limits.dailyBudget,
+      maxSinglePayment: config.maxSinglePayment,
+      budgetCap: config.budgetCap,
+      windowSeconds: config.windowSeconds,
     },
     endpointPricing: PRICING,
   });
@@ -152,44 +139,56 @@ app.get('/config', async (_req, res) => {
    AGENT POOL
 ───────────────────────────────────────────── */
 
-function resolvedSpent(state: { success: boolean; cumulative24h?: number; dayStart?: number }): number {
+function resolvedSpent(
+  state: { success: boolean; cumulativeSpent?: number; windowStart?: number },
+  windowSeconds: number,
+): number {
   if (!state.success) return 0;
-  const cumulative = (state as any).cumulative24h ?? 0;
-  const dayStart = (state as any).dayStart ?? 0;
-  // Apply the same 24h expiry the contract uses — if the window has passed,
+  const cumulative = (state as any).cumulativeSpent ?? 0;
+  const windowStart = (state as any).windowStart ?? 0;
+  // Apply the same window expiry the contract uses — if the window has passed,
   // the stored value is stale (lazy reset) so treat the agent as fresh.
   const nowSec = Math.floor(Date.now() / 1000);
-  if (dayStart > 0 && nowSec - dayStart >= 86400) return 0;
+  if (windowStart > 0 && nowSec - windowStart >= windowSeconds) return 0;
   return cumulative;
 }
 
 app.get('/agent', async (_req, res) => {
   const agentAddr = process.env.AGENT_ADDRESS!;
-  const state = await getAgentState(agentAddr).catch(() => ({ success: false }));
+  const [state, config] = await Promise.all([
+    getAgentState(agentAddr).catch(() => ({ success: false })),
+    getConfig().catch(() => ({ success: false })),
+  ]);
+  const windowSeconds = config.success ? ((config as any).windowSeconds ?? 86400) : 86400;
   return res.json({
     currentAgent: agentAddr,
     agentIndex: currentAgentIndex,
     totalAgents: agentPool.length,
-    cumulative24h: resolvedSpent(state as any),
+    cumulativeSpent: resolvedSpent(state as any, windowSeconds),
   });
 });
 
 app.get('/agent/state', async (_req, res) => {
   const agentAddr = process.env.AGENT_ADDRESS!;
-  const [state, limits] = await Promise.all([
+  const [state, config] = await Promise.all([
     getAgentState(agentAddr).catch(() => ({ success: false })),
-    getLimits().catch(() => ({ success: false })),
+    getConfig().catch(() => ({ success: false })),
   ]);
+  const windowSeconds = config.success ? ((config as any).windowSeconds ?? 86400) : 86400;
   return res.json({
-    spent: resolvedSpent(state as any),
-    dailyBudget: limits.success ? (limits as any).dailyBudget : 0,
-    maxSinglePayment: limits.success ? (limits as any).maxSinglePayment : 0,
+    spent: resolvedSpent(state as any, windowSeconds),
+    budgetCap: config.success ? (config as any).budgetCap : 0,
+    maxSinglePayment: config.success ? (config as any).maxSinglePayment : 0,
   });
 });
 
 app.post('/reset', async (_req, res) => {
+  const recipient = getRecipient();
+  const config = await getConfig().catch(() => ({ success: false }));
+  const windowSeconds = config.success ? ((config as any).windowSeconds ?? 86400) : 86400;
+
   // Walk the pool from the next index to find a fresh agent
-  // (one that can still make at least a basic payment without DailyBudgetExceeded)
+  // (one that can still make at least a basic payment without BudgetCapExceeded)
   const start = (currentAgentIndex + 1) % agentPool.length;
   let found = false;
 
@@ -198,13 +197,13 @@ app.post('/reset', async (_req, res) => {
     const candidate = agentPool[idx];
     if (!candidate) continue;
     const [check, agentState] = await Promise.all([
-      checkPayment(candidate, PRICING.basic),
+      simulateRequestPayment(candidate, recipient, PRICING.basic),
       getAgentState(candidate).catch(() => ({ success: false })),
     ]);
-    const spent = resolvedSpent(agentState as any);
-    const dayStart = (agentState as any).dayStart ?? 0;
+    const spent = resolvedSpent(agentState as any, windowSeconds);
+    const windowStart = (agentState as any).windowStart ?? 0;
     const nowSec = Math.floor(Date.now() / 1000);
-    console.log(`[reset] agent[${idx}] ${candidate.slice(0, 8)}… approved=${check.approved} reason=${check.error ?? 'ok'} spent=${spent} dayStart=${dayStart} age=${nowSec - dayStart}s`);
+    console.log(`[reset] agent[${idx}] ${candidate.slice(0, 8)}… approved=${check.approved} reason=${check.error ?? 'ok'} spent=${spent} windowStart=${windowStart} age=${nowSec - windowStart}s`);
     if (check.approved) {
       currentAgentIndex = idx;
       process.env.AGENT_ADDRESS = candidate;
@@ -214,8 +213,8 @@ app.post('/reset', async (_req, res) => {
   }
 
   if (!found) {
-    console.warn('[reset] all agents in pool have exceeded daily budget');
-    return res.status(503).json({ error: 'All agents exhausted — wait for 24h window to reset' });
+    console.warn('[reset] all agents in pool have exceeded their budget cap');
+    return res.status(503).json({ error: 'All agents exhausted — wait for the budget window to reset' });
   }
 
   const agentAddr = process.env.AGENT_ADDRESS!;
@@ -227,7 +226,7 @@ app.post('/reset', async (_req, res) => {
     currentAgent: agentAddr,
     agentIndex: currentAgentIndex,
     totalAgents: agentPool.length,
-    cumulative24h: state.success ? ((state as any).cumulative24h ?? 0) : 0,
+    cumulativeSpent: state.success ? ((state as any).cumulativeSpent ?? 0) : 0,
   });
 });
 

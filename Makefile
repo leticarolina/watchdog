@@ -1,4 +1,5 @@
-CONTRACT_ID=CDK4XFYOHDCJTRXNM4I56ZYUEVLQIRLRLOT7R6XRRYSGPBTGXXSB7DVH
+# CONTRACT_ID=CDK4XFYOHDCJTRXNM4I56ZYUEVLQIRLRLOT7R6XRRYSGPBTGXXSB7DVH
+CONTRACT_ID=CBA2LXX3FZ5TN5HHVGSJ47AUF3ZCLS6NG6AKE2ZZEHC5LEJQLJU6RBT2
 XLM_SAC_TESTNET=CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC
 
 build:
@@ -47,7 +48,7 @@ initialize:
 		-- initialize \
 		--owner $$(stellar keys address mykeystellar) \
 		--max-single-payment 200000000 \
-		--budget-cap 400000000 \
+		--budget-cap 600000000 \
 		--token $(XLM_SAC_TESTNET) \
 		--window-seconds 86400
 
@@ -91,7 +92,7 @@ set-allowlist:
 		--network testnet \
 		-- set_allowlist \
 		--caller $$(stellar keys address mykeystellar) \
-		--recipient $(RECIPIENT) \
+		--recipient GBCP3AAFAMUN5OCNGM3AIASNQSLFU7DTFI2LBEKIICFHJLZY2GYTCM6U \
 		--allowed $(ALLOWED)
 
 is-allowed:
@@ -100,7 +101,7 @@ is-allowed:
 		--source-account mykeystellar \
 		--network testnet \
 		-- is_allowed \
-		--recipient $(RECIPIENT)
+		--recipient GC2L7472GR5WYXGSNILF5ME4VS6KA2LMWQMU6PIFKEWTPWQZTBKL5L2G
 
 set-paused:
 	stellar contract invoke \

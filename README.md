@@ -3,8 +3,9 @@
 A spending safety layer for AI agents, so they can pay for things autonomously without going off the rails.
 
 - [Live Site](https://watchdog-agent.vercel.app)
-- [Contract](https://stellar.expert/explorer/testnet/contract/CDK4XFYOHDCJTRXNM4I56ZYUEVLQIRLRLOT7R6XRRYSGPBTGXXSB7DVH)
+- [Contract](https://stellar.expert/explorer/testnet/contract/CBA2LXX3FZ5TN5HHVGSJ47AUF3ZCLS6NG6AKE2ZZEHC5LEJQLJU6RBT2)
 - [Demo Video](https://www.youtube.com/watch?v=KBViqt0M3Yg&t=13s)
+- [Creation](https://stellar.expert/explorer/testnet/tx/576b9cbba4a017028a36b061bd15354316dfce8e7c917791ad8c71d75862acf9)
 
 ---
 
