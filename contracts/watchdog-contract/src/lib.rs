@@ -7,20 +7,33 @@
 //! ## Rules
 //! Every `request_payment` call is evaluated against two behavioral rules:
 //! 1. **Single Payment Limit** — no single payment may exceed the configured limit
-//! 2. **Daily Budget Cap** — cumulative spend per agent may not exceed the daily budget in a 24h window
+//! 2. **Budget Cap** — cumulative spend per agent may not exceed the budget cap within the configured window
 //!
 //! ## Configuration
 //! Limits are set by the owner at deploy time via `initialize()` and can be updated anytime via `set_limits()`
 
 #![no_std]
-use soroban_sdk::{contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env};
+use soroban_sdk::{
+    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, Env,
+};
 
 /// Storage keys for contract instance storage
 #[contracttype]
 pub enum ConfigKey {
     Owner,
     MaxSinglePayment,
-    DailyBudget,
+    BudgetCap,
+    Token,
+    WindowSeconds,
+    Paused,
+}
+
+/// Storage key wrapper for the recipient allowlist, kept distinct from
+/// AgentState (keyed directly by agent Address) in persistent storage.
+/// Equivalent to mapping(address => bool) allowlist in Solidity.
+#[contracttype]
+pub enum AllowlistKey {
+    Recipient(Address),
 }
 
 /// Errors returned by the Watchdog contract
@@ -28,10 +41,14 @@ pub enum ConfigKey {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum WatchdogError {
     SinglePaymentLimitExceeded = 1,
-    DailyBudgetExceeded = 2,
+    BudgetCapExceeded = 2,
     NotInitialized = 3,
     Unauthorized = 4,
     AlreadyInitialized = 5,
+    InsufficientVaultBalance = 6,
+    RecipientNotAllowed = 7,
+    ContractPaused = 8,
+    InvalidAmount = 9,
 }
 
 /// Per-agent spending state stored in persistent storage
@@ -39,8 +56,8 @@ pub enum WatchdogError {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AgentState {
-    pub cumulative_24h: i128,
-    pub day_start: u64,
+    pub cumulative_spent: i128,
+    pub window_start: u64,
 }
 
 #[contract]
@@ -54,12 +71,16 @@ impl WatchdogContract {
     /// # Arguments
     /// * `owner` - Address that can update limits (= msg.sender in constructor)
     /// * `max_single_payment` - Max allowed per single payment in stroops
-    /// * `daily_budget` - Max cumulative spend per agent per 24h in stroops
+    /// * `budget_cap` - Max cumulative spend per agent within the configured window, in stroops
+    /// * `token` - Address of the XLM Stellar Asset Contract (SAC) the vault holds
+    /// * `window_seconds` - Length of the rolling budget window in seconds
     pub fn initialize(
         env: Env,
         owner: Address,
         max_single_payment: i128,
-        daily_budget: i128,
+        budget_cap: i128,
+        token: Address,
+        window_seconds: u64,
     ) -> Result<(), WatchdogError> {
         if env.storage().instance().has(&ConfigKey::Owner) {
             return Err(WatchdogError::AlreadyInitialized);
@@ -69,7 +90,9 @@ impl WatchdogContract {
 
         env.storage().instance().set(&ConfigKey::Owner, &owner);
         env.storage().instance().set(&ConfigKey::MaxSinglePayment, &max_single_payment);
-        env.storage().instance().set(&ConfigKey::DailyBudget, &daily_budget);
+        env.storage().instance().set(&ConfigKey::BudgetCap, &budget_cap);
+        env.storage().instance().set(&ConfigKey::Token, &token);
+        env.storage().instance().set(&ConfigKey::WindowSeconds, &window_seconds);
 
         Ok(())
     }
@@ -80,12 +103,12 @@ impl WatchdogContract {
     /// # Arguments
     /// * `caller` - Must match stored owner address
     /// * `max_single_payment` - New single payment limit in stroops
-    /// * `daily_budget` - New daily budget in stroops
+    /// * `budget_cap` - New budget cap in stroops
     pub fn set_limits(
         env: Env,
         caller: Address,
         max_single_payment: i128,
-        daily_budget: i128,
+        budget_cap: i128,
     ) -> Result<(), WatchdogError> {
         caller.require_auth();
 
@@ -100,7 +123,87 @@ impl WatchdogContract {
         }
 
         env.storage().instance().set(&ConfigKey::MaxSinglePayment, &max_single_payment);
-        env.storage().instance().set(&ConfigKey::DailyBudget, &daily_budget);
+        env.storage().instance().set(&ConfigKey::BudgetCap, &budget_cap);
+
+        Ok(())
+    }
+
+    /// Update the rolling budget window length. Only callable by owner.
+    /// Equivalent to onlyOwner modifier in Solidity.
+    ///
+    /// # Arguments
+    /// * `caller` - Must match stored owner address
+    /// * `window_seconds` - New window length in seconds
+    pub fn set_window(env: Env, caller: Address, window_seconds: u64) -> Result<(), WatchdogError> {
+        caller.require_auth();
+
+        let owner: Address = env
+            .storage()
+            .instance()
+            .get(&ConfigKey::Owner)
+            .ok_or(WatchdogError::NotInitialized)?;
+
+        if caller != owner {
+            return Err(WatchdogError::Unauthorized);
+        }
+
+        env.storage().instance().set(&ConfigKey::WindowSeconds, &window_seconds);
+
+        Ok(())
+    }
+
+    /// Adds or removes a recipient from the payout allowlist. Only callable by owner.
+    /// Equivalent to onlyOwner modifier in Solidity.
+    ///
+    /// # Arguments
+    /// * `caller` - Must match stored owner address
+    /// * `recipient` - Address to toggle
+    /// * `allowed` - Whether `recipient` may receive payments
+    pub fn set_allowlist(
+        env: Env,
+        caller: Address,
+        recipient: Address,
+        allowed: bool,
+    ) -> Result<(), WatchdogError> {
+        caller.require_auth();
+
+        let owner: Address = env
+            .storage()
+            .instance()
+            .get(&ConfigKey::Owner)
+            .ok_or(WatchdogError::NotInitialized)?;
+
+        if caller != owner {
+            return Err(WatchdogError::Unauthorized);
+        }
+
+        env.storage()
+            .persistent()
+            .set(&AllowlistKey::Recipient(recipient), &allowed);
+
+        Ok(())
+    }
+
+    /// Pauses or unpauses outgoing payments. Only callable by owner.
+    /// Equivalent to onlyOwner modifier in Solidity.
+    ///
+    /// # Arguments
+    /// * `caller` - Must match stored owner address
+    /// * `paused` - Whether request_payment should be frozen
+    pub fn set_paused(env: Env, caller: Address, paused: bool) -> Result<(), WatchdogError> {
+        caller.require_auth();
+
+        let owner: Address = env
+            .storage()
+            .instance()
+            .get(&ConfigKey::Owner)
+            .ok_or(WatchdogError::NotInitialized)?;
+
+        if caller != owner {
+            return Err(WatchdogError::Unauthorized);
+        }
+
+        env.storage().instance().set(&ConfigKey::Paused, &paused);
 
         Ok(())
     }
@@ -116,46 +219,146 @@ impl WatchdogContract {
         let budget: i128 = env
             .storage()
             .instance()
-            .get(&ConfigKey::DailyBudget)
+            .get(&ConfigKey::BudgetCap)
             .ok_or(WatchdogError::NotInitialized)?;
 
         Ok((max, budget))
+    }
+
+    /// Returns current limits plus the rolling budget window length.
+    pub fn get_config(env: Env) -> Result<(i128, i128, u64), WatchdogError> {
+        let max: i128 = env
+            .storage()
+            .instance()
+            .get(&ConfigKey::MaxSinglePayment)
+            .ok_or(WatchdogError::NotInitialized)?;
+
+        let budget: i128 = env
+            .storage()
+            .instance()
+            .get(&ConfigKey::BudgetCap)
+            .ok_or(WatchdogError::NotInitialized)?;
+
+        let window_seconds: u64 = env
+            .storage()
+            .instance()
+            .get(&ConfigKey::WindowSeconds)
+            .ok_or(WatchdogError::NotInitialized)?;
+
+        Ok((max, budget, window_seconds))
+    }
+
+    /// Returns whether `recipient` is allowed to receive payments.
+    /// Any recipient never explicitly added returns false.
+    pub fn is_allowed(env: Env, recipient: Address) -> bool {
+        env.storage()
+            .persistent()
+            .get(&AllowlistKey::Recipient(recipient))
+            .unwrap_or(false)
+    }
+
+    /// Returns whether outgoing payments are currently paused.
+    pub fn is_paused(env: Env) -> bool {
+        env.storage().instance().get(&ConfigKey::Paused).unwrap_or(false)
     }
 
     /// Returns current per-agent state.
     /// If the agent has no stored state yet, returns a zeroed state.
     pub fn get_agent_state(env: Env, agent: Address) -> AgentState {
         env.storage().persistent().get(&agent).unwrap_or(AgentState {
-            cumulative_24h: 0,
-            day_start: 0,
+            cumulative_spent: 0,
+            window_start: 0,
         })
     }
 
-    /// Evaluates whether an agent payment is within behavioral limits.
+    /// Deposits XLM into the contract's own balance via the SAC transfer.
+    /// Equivalent to a `deposit()` payable function pulling funds with `transferFrom` in Solidity.
+    ///
+    /// # Arguments
+    /// * `from` - Address funding the vault (must authorize the transfer)
+    /// * `amount` - Amount in stroops to deposit
+    ///
+    /// Deliberately not gated by is_paused(): the owner should still be able to
+    /// fund/manage the vault while paused — only outgoing payments freeze.
+    pub fn deposit(env: Env, from: Address, amount: i128) -> Result<(), WatchdogError> {
+        if amount <= 0 {
+            return Err(WatchdogError::InvalidAmount);
+        }
+
+        from.require_auth();
+
+        let token_client = token::Client::new(&env, &Self::xlm_sac(&env));
+        token_client.transfer(&from, &env.current_contract_address(), &amount);
+
+        Ok(())
+    }
+
+    /// Returns the contract's current XLM balance held in the vault.
+    pub fn get_balance(env: Env) -> i128 {
+        let token_client = token::Client::new(&env, &Self::xlm_sac(&env));
+        token_client.balance(&env.current_contract_address())
+    }
+
+    /// Resolves the XLM SAC token address configured at initialize().
+    fn xlm_sac(env: &Env) -> Address {
+        env.storage()
+            .instance()
+            .get(&ConfigKey::Token)
+            .expect("token not initialized")
+    }
+
+    /// Evaluates whether an agent payment is within behavioral limits, and if
+    /// approved, has the contract itself transfer the funds to the recipient.
     ///
     /// # Arguments
     /// * `env` - The Soroban environment
-    /// * `agent` - Address of the agent requesting payment
+    /// * `agent` - Address of the agent requesting payment (must authorize the request)
+    /// * `recipient` - Address that receives the XLM
     /// * `amount` - Payment amount in stroops (1 XLM = 10_000_000)
     ///
     /// # Returns
-    /// * `Ok(true)` if payment is approved and state is updated
+    /// * `Ok(true)` if payment is approved, state is updated, and funds transferred
     ///
     /// # Errors
     /// * `NotInitialized` - contract not initialized yet
     /// * `SinglePaymentLimitExceeded` - amount > max_single_payment
-    /// * `DailyBudgetExceeded` - cumulative_24h + amount > daily_budget
-    pub fn request_payment(env: Env, agent: Address, amount: i128) -> Result<bool, WatchdogError> {
+    /// * `BudgetCapExceeded` - cumulative_spent + amount > budget_cap
+    /// * `RecipientNotAllowed` - recipient is not on the payout allowlist
+    /// * `InsufficientVaultBalance` - contract does not hold enough XLM to pay out
+    /// * `ContractPaused` - owner has frozen outgoing payments
+    /// * `InvalidAmount` - amount is zero or negative
+    pub fn request_payment(
+        env: Env,
+        agent: Address,
+        recipient: Address,
+        amount: i128,
+    ) -> Result<bool, WatchdogError> {
+        if amount <= 0 {
+            return Err(WatchdogError::InvalidAmount);
+        }
+
+        if env.storage().instance().get(&ConfigKey::Paused).unwrap_or(false) {
+            return Err(WatchdogError::ContractPaused);
+        }
+
+        agent.require_auth();
+
         let max_single: i128 = env
             .storage()
             .instance()
             .get(&ConfigKey::MaxSinglePayment)
             .ok_or(WatchdogError::NotInitialized)?;
 
-        let daily_budget: i128 = env
+        let budget_cap: i128 = env
             .storage()
             .instance()
-            .get(&ConfigKey::DailyBudget)
+            .get(&ConfigKey::BudgetCap)
+            .ok_or(WatchdogError::NotInitialized)?;
+
+        let window_seconds: u64 = env
+            .storage()
+            .instance()
+            .get(&ConfigKey::WindowSeconds)
             .ok_or(WatchdogError::NotInitialized)?;
 
         // Rule 1: single payment ceiling
@@ -170,31 +373,54 @@ impl WatchdogContract {
         let now: u64 = env.ledger().timestamp();
 
         let mut state: AgentState = env.storage().persistent().get(&agent).unwrap_or(AgentState {
-            cumulative_24h: 0,
-            day_start: now,
+            cumulative_spent: 0,
+            window_start: now,
         });
 
-        // Reset 24h window if expired
-        if now >= state.day_start + 86400 {
-            state.cumulative_24h = 0;
-            state.day_start = now;
+        // Reset window if expired
+        if now >= state.window_start + window_seconds {
+            state.cumulative_spent = 0;
+            state.window_start = now;
         }
 
-        // Rule 2: daily budget ceiling
-        if state.cumulative_24h + amount > daily_budget {
+        // Rule 2: budget cap ceiling
+        if state.cumulative_spent + amount > budget_cap {
             env.events().publish(
                 (symbol_short!("watchdog"), symbol_short!("blocked")),
-                (agent.clone(), amount, symbol_short!("day_cap"), state.day_start),
+                (agent.clone(), amount, symbol_short!("win_cap"), state.window_start),
             );
-            return Err(WatchdogError::DailyBudgetExceeded);
+            return Err(WatchdogError::BudgetCapExceeded);
         }
 
-        state.cumulative_24h += amount;
+        // Rule 3: recipient must be allowlisted
+        let allowed: bool = env
+            .storage()
+            .persistent()
+            .get(&AllowlistKey::Recipient(recipient.clone()))
+            .unwrap_or(false);
+        if !allowed {
+            env.events().publish(
+                (symbol_short!("watchdog"), symbol_short!("blocked")),
+                (agent.clone(), amount, symbol_short!("not_allow")),
+            );
+            return Err(WatchdogError::RecipientNotAllowed);
+        }
+
+        let token_client = token::Client::new(&env, &Self::xlm_sac(&env));
+        let contract_address = env.current_contract_address();
+
+        if token_client.balance(&contract_address) < amount {
+            return Err(WatchdogError::InsufficientVaultBalance);
+        }
+
+        state.cumulative_spent += amount;
         env.storage().persistent().set(&agent, &state);
+
+        token_client.transfer(&contract_address, &recipient, &amount);
 
         env.events().publish(
             (symbol_short!("watchdog"), symbol_short!("approved")),
-            (agent, amount, state.cumulative_24h, state.day_start),
+            (agent, amount, state.cumulative_spent, state.window_start),
         );
 
         Ok(true)

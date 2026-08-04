@@ -1,6 +1,6 @@
 {
   "generators": {
-    "address": 6,
+    "address": 7,
     "nonce": 0,
     "mux_id": 0
   },
@@ -635,10 +635,10 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
                 },
                 {
-                  "i128": "300000000"
+                  "i128": "100000000"
                 },
                 {
-                  "symbol": "sngl_lmt"
+                  "symbol": "not_allow"
                 }
               ]
             }
