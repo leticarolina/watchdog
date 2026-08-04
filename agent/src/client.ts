@@ -1,55 +1,51 @@
 /**
- * Internal MPP client — mirrors what pay-test.ts does but runs inside the server process.
- * The /run/* endpoints call these instead of the browser hitting /analysis/* directly.
+ * Internal payment client — mirrors what an external caller does but runs
+ * inside the server process. The /run/* endpoints call these instead of the
+ * browser hitting /analysis/* directly.
+ *
+ * middleware/payment.ts no longer speaks real MPP — it hand-rolls a 402
+ * challenge + a simple Authorization-header credential check, then settles
+ * by calling request_payment itself. So this does a plain two-step fetch
+ * instead of going through the mppx client (which expects real MPP challenge
+ * shapes and fails Zod validation against this simplified one).
  */
-import { Mppx } from 'mppx/client';
-import { stellar } from '@stellar/mpp/charge/client';
-
 const BASE = 'http://localhost:3000';
 
-let _mppx: ReturnType<typeof Mppx.create> | null = null;
-
-function getMppx() {
-  if (!_mppx) {
-    const secretKey = process.env.STELLAR_SECRET_KEY;
-    if (!secretKey) throw new Error('STELLAR_SECRET_KEY not set');
-    _mppx = Mppx.create({
-      polyfill: false, // don't touch globalThis.fetch
-      methods: [stellar.charge({ secretKey })],
-    });
-  }
-  return _mppx;
-}
-
 export type AnalysisResult =
-  | { success: true; paymentTxHash: string; watchdogTxHash: string }
+  | { success: true; txHash: string }
   | { blocked: true; reason: string }
   | { error: string };
 
 /**
- * Run an analysis endpoint through the full MPP payment cycle.
+ * Run an analysis endpoint through the simplified 402 payment cycle.
  *
  * Flow:
- *   1. mppx.fetch hits /analysis/* — server returns 402 + challenge
+ *   1. Plain fetch hits /analysis/* — server returns 402 + challenge
  *      (unless contract pre-check already blocks it — then returns 200 blocked)
- *   2. mppx handles challenge: signs Soroban SAC transfer, retries with credential
- *   3. Server broadcasts tx, confirms, returns { success, paymentTxHash, watchdogTxHash }
+ *   2. Retry with a dummy Authorization header — payment.ts only checks for
+ *      credential presence, then signs and submits request_payment itself,
+ *      which both verifies and pays out in the same call.
+ *   3. Server returns { success, txHash } directly in the body.
  */
 export async function runAnalysis(
   path: '/analysis/basic' | '/analysis/deep',
 ): Promise<AnalysisResult> {
-  const mppx = getMppx();
+  let response = await fetch(`${BASE}${path}`);
 
-  let response: Response;
-  response = await mppx.fetch(`${BASE}${path}`);
+  if (response.status === 402) {
+    response = await fetch(`${BASE}${path}`, {
+      headers: { Authorization: 'dummy' },
+    });
+  }
 
-  // Extract payment TX hash from the receipt header (base64 JSON, field = "reference")
-  let paymentTxHash = '';
+  // Fallback: extract the tx hash from the receipt header (base64 JSON,
+  // field = "reference") in case the JSON body ever omits it.
+  let receiptTxHash = '';
   const receiptHeader = response.headers.get('payment-receipt');
   if (receiptHeader) {
     try {
       const receipt = JSON.parse(Buffer.from(receiptHeader, 'base64').toString('utf-8'));
-      paymentTxHash = receipt.reference ?? '';
+      receiptTxHash = receipt.reference ?? '';
     } catch {
       // malformed receipt — proceed without hash
     }
@@ -64,8 +60,7 @@ export async function runAnalysis(
   if (body.success) {
     return {
       success: true,
-      paymentTxHash: String(body.paymentTxHash ?? paymentTxHash),
-      watchdogTxHash: String(body.watchdogTxHash ?? ''),
+      txHash: String(body.txHash ?? receiptTxHash),
     };
   }
 

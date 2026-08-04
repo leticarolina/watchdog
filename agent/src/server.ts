@@ -82,8 +82,8 @@ app.get(
 
 /* ─────────────────────────────────────────────
    RUN ENDPOINTS — browser-friendly wrappers
-   Use mppx client internally so the browser
-   never has to handle the 402/MPP cycle.
+   Handle the 402 challenge/retry internally so
+   the browser never has to deal with it.
 ───────────────────────────────────────────── */
 
 app.get('/run/basic', async (_req, res) => {
