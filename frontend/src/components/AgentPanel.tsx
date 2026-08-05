@@ -4,22 +4,24 @@ import { API_BASE } from '../config'
 interface AgentPanelProps {
   basicPriceXLM: number
   deepPriceXLM: number
-  onStart: (type: 'basic' | 'deep', amountXLM: number) => string
-  onApproved: (pendingId: string, amountXLM: number, txHash: string) => void
-  onBlocked: (pendingId: string, amountXLM: number, reason: string) => void
+  onStart: (type: 'basic' | 'deep' | 'basic-blocked', amountXLM: number) => string
+  onApproved: (pendingId: string, amountXLM: number, txHash: string, recipient?: string) => void
+  onBlocked: (pendingId: string, amountXLM: number, reason: string, recipient?: string) => void
   onReset?: () => void
   resetLoading?: boolean
+  resetError?: string | null
 }
 
 const DRAIN_MAX_ATTEMPTS = 6
 const DRAIN_DELAY_MS = 5000
 
-export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, onBlocked, onReset, resetLoading }: AgentPanelProps) {
+export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, onBlocked, onReset, resetLoading, resetError }: AgentPanelProps) {
   const [basicLoading, setBasicLoading] = useState(false)
   const [deepLoading, setDeepLoading] = useState(false)
   const [drainLoading, setDrainLoading] = useState(false)
+  const [blockedLoading, setBlockedLoading] = useState(false)
 
-  const anyLoading = basicLoading || deepLoading || drainLoading || !!resetLoading
+  const anyLoading = basicLoading || deepLoading || drainLoading || blockedLoading || !!resetLoading
 
   async function runBasic() {
     setBasicLoading(true)
@@ -28,9 +30,9 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
       const res = await fetch(`${API_BASE}/run/basic`)
       const data = await res.json()
       if (data.success) {
-        onApproved(pendingId, basicPriceXLM, data.txHash ?? '')
+        onApproved(pendingId, basicPriceXLM, data.txHash ?? '', data.recipient)
       } else if (data.blocked) {
-        onBlocked(pendingId, basicPriceXLM, data.reason ?? 'Unknown')
+        onBlocked(pendingId, basicPriceXLM, data.reason ?? 'Unknown', data.recipient)
       } else {
         onBlocked(pendingId, basicPriceXLM, data.error ?? 'Unknown')
       }
@@ -48,9 +50,9 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
       const res = await fetch(`${API_BASE}/run/deep`)
       const data = await res.json()
       if (data.success) {
-        onApproved(pendingId, deepPriceXLM, data.txHash ?? '')
+        onApproved(pendingId, deepPriceXLM, data.txHash ?? '', data.recipient)
       } else if (data.blocked) {
-        onBlocked(pendingId, deepPriceXLM, data.reason ?? 'Unknown')
+        onBlocked(pendingId, deepPriceXLM, data.reason ?? 'Unknown', data.recipient)
       } else {
         onBlocked(pendingId, deepPriceXLM, data.error ?? 'Unknown')
       }
@@ -70,10 +72,10 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
           const res = await fetch(`${API_BASE}/run/basic`)
           const data = await res.json()
           if (data.success) {
-            onApproved(pendingId, basicPriceXLM, data.txHash ?? '')
+            onApproved(pendingId, basicPriceXLM, data.txHash ?? '', data.recipient)
           } else if (data.blocked) {
-            onBlocked(pendingId, basicPriceXLM, data.reason ?? 'Unknown')
-            if (data.reason === 'BudgetCapExceeded') break
+            onBlocked(pendingId, basicPriceXLM, data.reason ?? 'Unknown', data.recipient)
+            break
           } else {
             onBlocked(pendingId, basicPriceXLM, data.error ?? 'Unknown')
           }
@@ -87,6 +89,26 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
       }
     } finally {
       setDrainLoading(false)
+    }
+  }
+
+  async function runBlocked() {
+    setBlockedLoading(true)
+    const pendingId = onStart('basic-blocked', basicPriceXLM)
+    try {
+      const res = await fetch(`${API_BASE}/run/basic-blocked`)
+      const data = await res.json()
+      if (data.success) {
+        onApproved(pendingId, basicPriceXLM, data.txHash ?? '', data.recipient)
+      } else if (data.blocked) {
+        onBlocked(pendingId, basicPriceXLM, data.reason ?? 'Unknown', data.recipient)
+      } else {
+        onBlocked(pendingId, basicPriceXLM, data.error ?? 'Unknown')
+      }
+    } catch {
+      onBlocked(pendingId, basicPriceXLM, 'NetworkError')
+    } finally {
+      setBlockedLoading(false)
     }
   }
 
@@ -152,6 +174,26 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
         <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>Spams basic until budget cap hit</p>
       </div>
 
+      {/* Simulate Blocked Recipient */}
+      <div className="flex flex-col items-center gap-1.5 lg:flex-1">
+        <button
+          onClick={runBlocked}
+          disabled={anyLoading}
+          className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-70 disabled:opacity-40 disabled:cursor-not-allowed text-left"
+          style={{ background: '#7c3aed' }}
+        >
+          <div className="flex items-center justify-between w-full">
+            <span className="text-xs uppercase tracking-widest opacity-70">Blocked Recipient</span>
+            {blockedLoading
+              ? <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <span className="text-base">⛔</span>
+            }
+          </div>
+          <p className="text-xl font-bold">{basicPriceXLM} XLM</p>
+        </button>
+        <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>Pays a non-allowlisted recipient</p>
+      </div>
+
       {/* Divider + Reset Demo */}
       {onReset && (
         <>
@@ -173,6 +215,11 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
               <p className="text-xl font-bold">New Agent</p>
             </button>
             <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>Switch to a fresh budget window</p>
+            {resetError && (
+              <p role="alert" className="text-xs text-center max-w-[160px]" style={{ color: '#dc2626' }}>
+                {resetError}
+              </p>
+            )}
           </div>
         </>
       )}

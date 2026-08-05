@@ -31,8 +31,8 @@ let currentAgentIndex = 0;
 
 /** Derive the server's Stellar public key (= payment recipient) from env. Mirrors payment.ts's own helper. */
 function getRecipient(): string {
-  const secretKey = process.env.STELLAR_SECRET_KEY;
-  if (!secretKey) throw new Error('STELLAR_SECRET_KEY not set');
+  const secretKey = process.env.RECIPIENT_SECRET_KEY_A;
+  if (!secretKey) throw new Error('RECIPIENT_SECRET_KEY_A not set');
   return Keypair.fromSecret(secretKey).publicKey();
 }
 
@@ -54,6 +54,7 @@ app.get(
     return res.json({
       success: true,
       txHash: res.locals.paymentReceipt?.txHash,
+      recipient: res.locals.recipient,
     });
   },
 );
@@ -76,6 +77,30 @@ app.get(
     return res.json({
       success: true,
       txHash: res.locals.paymentReceipt?.txHash,
+      recipient: res.locals.recipient,
+    });
+  },
+);
+
+/* ─────────────────────────────────────────────
+   BASIC ANALYSIS — BLOCKED RECIPIENT DEMO
+   Same as /analysis/basic but targets recipient B,
+   which is deliberately never allowlisted — this
+   always returns { blocked: true, reason: 'RecipientNotAllowed' }.
+───────────────────────────────────────────── */
+
+app.get(
+  '/analysis/basic-blocked',
+  requirePayment(PRICING.basic, 'RECIPIENT_SECRET_KEY_B'),
+  async (_req, res) => {
+    // In practice this handler never runs — recipient B is never allowlisted,
+    // so requirePayment() always short-circuits with a blocked response first.
+    console.log('[basic-blocked] APPROVED — txHash:', res.locals.paymentReceipt?.txHash);
+
+    return res.json({
+      success: true,
+      txHash: res.locals.paymentReceipt?.txHash,
+      recipient: res.locals.recipient,
     });
   },
 );
@@ -106,6 +131,18 @@ app.get('/run/deep', async (_req, res) => {
     return res.json(result);
   } catch (err: any) {
     console.error('[run/deep] error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/run/basic-blocked', async (_req, res) => {
+  console.log('[run/basic-blocked] triggered');
+  try {
+    const result = await runAnalysis('/analysis/basic-blocked');
+    console.log('[run/basic-blocked] result:', JSON.stringify(result));
+    return res.json(result);
+  } catch (err: any) {
+    console.error('[run/basic-blocked] error:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -165,6 +202,7 @@ app.get('/agent', async (_req, res) => {
     agentIndex: currentAgentIndex,
     totalAgents: agentPool.length,
     cumulativeSpent: resolvedSpent(state as any, windowSeconds),
+    windowStart: (state as any).windowStart ?? 0,
   });
 });
 
@@ -191,6 +229,7 @@ app.post('/reset', async (_req, res) => {
   // (one that can still make at least a basic payment without BudgetCapExceeded)
   const start = (currentAgentIndex + 1) % agentPool.length;
   let found = false;
+  const failureReasons = new Set<string>();
 
   for (let i = 0; i < agentPool.length; i++) {
     const idx = (start + i) % agentPool.length;
@@ -210,11 +249,18 @@ app.post('/reset', async (_req, res) => {
       found = true;
       break;
     }
+    failureReasons.add(check.error ?? 'Unknown');
   }
 
   if (!found) {
-    console.warn('[reset] all agents in pool have exceeded their budget cap');
-    return res.status(503).json({ error: 'All agents exhausted — wait for the budget window to reset' });
+    // Lead with the actionable cause: an empty vault blocks every agent
+    // regardless of budget/window state, so it's a different fix (deposit
+    // funds) than "wait for the window to reset."
+    const message = failureReasons.has('InsufficientVaultBalance')
+      ? 'Vault balance too low — deposit more funds before resetting'
+      : 'All agents exhausted — wait for the budget window to reset';
+    console.warn(`[reset] no agent qualified — reasons=[${Array.from(failureReasons).join(', ')}]`);
+    return res.status(503).json({ error: message });
   }
 
   const agentAddr = process.env.AGENT_ADDRESS!;
@@ -227,6 +273,7 @@ app.post('/reset', async (_req, res) => {
     agentIndex: currentAgentIndex,
     totalAgents: agentPool.length,
     cumulativeSpent: state.success ? ((state as any).cumulativeSpent ?? 0) : 0,
+    windowStart: state.success ? ((state as any).windowStart ?? 0) : 0,
   });
 });
 

@@ -6,7 +6,7 @@ build:
 	stellar contract build
 
 test:
-	cargo test --manifest-path contracts/watchdog-contract/Cargo.toml
+	cargo test --manifest-path contract/Cargo.toml
 
 deploy:
 	stellar contract deploy \
@@ -73,8 +73,8 @@ set-limits:
 		--network testnet \
 		-- set_limits \
 		--caller $$(stellar keys address mykeystellar) \
-		--max-single-payment 60000000 \
-		--budget-cap 100000000
+		--max-single-payment 50000000 \
+		--budget-cap 150000000
 
 set-window:
 	stellar contract invoke \

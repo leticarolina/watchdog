@@ -1,8 +1,11 @@
+import { useEffect, useState } from 'react'
+
 export interface AgentInfo {
   currentAgent: string
   agentIndex: number
   totalAgents: number
   cumulativeSpent?: number // stroops, from contract
+  windowStart?: number // unix seconds, from contract — 0 if the agent hasn't spent yet
 }
 
 interface ContractStateProps {
@@ -27,6 +30,14 @@ function formatWindow(seconds: number): string {
   return `${seconds}s`
 }
 
+/** Formats a countdown in seconds as MM:SS. */
+function formatCountdown(seconds: number): string {
+  if (seconds <= 0) return '00:00'
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
 export function ContractState({ maxSinglePaymentXLM, dailyBudgetXLM, windowSeconds, spentXLM, agent }: ContractStateProps) {
   const remaining = Math.max(0, dailyBudgetXLM - spentXLM)
   const usedPct = dailyBudgetXLM > 0 ? Math.min(1, spentXLM / dailyBudgetXLM) : 0
@@ -34,6 +45,23 @@ export function ContractState({ maxSinglePaymentXLM, dailyBudgetXLM, windowSecon
 
   const barColor = remainingPct > 0.5 ? '#2A6170' : remainingPct > 0.2 ? '#E99E33' : '#dc2626'
   const remainingColor = remainingPct > 0.5 ? '#16a34a' : remainingPct > 0.2 ? '#E99E33' : '#dc2626'
+
+  // Live MM:SS countdown until the agent's budget window resets.
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  const windowStart = agent?.windowStart ?? 0
+  const hasActiveWindow = windowStart > 0
+  const resetAtMs = hasActiveWindow ? (windowStart + windowSeconds) * 1000 : 0
+  const secondsRemaining = hasActiveWindow ? Math.max(0, Math.ceil((resetAtMs - nowMs) / 1000)) : 0
+  const countdownLabel = !hasActiveWindow
+    ? 'No active window yet'
+    : secondsRemaining > 0
+      ? `Resets in ${formatCountdown(secondsRemaining)}`
+      : 'Ready to reset'
 
   return (
     <div
@@ -72,9 +100,14 @@ export function ContractState({ maxSinglePaymentXLM, dailyBudgetXLM, windowSecon
 
       {/* Budget window usage */}
       <div className="flex flex-col gap-2.5">
-        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#1B3A4B', opacity: 0.45 }}>
-          Budget Window ({formatWindow(windowSeconds)})
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#1B3A4B', opacity: 0.45 }}>
+            Budget Window ({formatWindow(windowSeconds)})
+          </p>
+          <span className="text-xs font-mono tabular-nums" style={{ color: '#1B3A4B', opacity: 0.5 }}>
+            {countdownLabel}
+          </span>
+        </div>
 
         {/* Progress bar */}
         <div className="h-5 rounded-full overflow-hidden" style={{ background: '#1B3A4B12' }}>
@@ -122,7 +155,10 @@ export function ContractState({ maxSinglePaymentXLM, dailyBudgetXLM, windowSecon
           </a>
           {agent.totalAgents > 0 && (
             <p className="text-xs text-center" style={{ color: '#1B3A4B', opacity: 0.4 }}>
-              Agent {agent.agentIndex + 1} of {agent.totalAgents}
+              <span className="font-semibold" style={{ color: '#1B3A4B', opacity: 1 }}>
+                Agent {agent.agentIndex === 0 ? 'A' : 'B'}
+              </span>
+              {' · '}{agent.agentIndex + 1} of {agent.totalAgents}
             </p>
           )}
         </div>

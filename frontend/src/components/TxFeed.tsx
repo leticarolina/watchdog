@@ -2,17 +2,40 @@ import { useEffect, useState } from 'react'
 
 export interface TxItem {
   id: string
-  type: 'basic' | 'deep'
+  type: 'basic' | 'deep' | 'basic-blocked'
   status: 'pending' | 'approved' | 'blocked'
   amountXLM: number
   reason?: string
   txHash?: string
+  recipient?: string
   timestamp: Date
 }
 
 function truncateHash(hash: string, head = 8, tail = 8): string {
   if (!hash || hash.length <= head + tail + 3) return hash
   return `${hash.slice(0, head)}...${hash.slice(-tail)}`
+}
+
+function truncateAddress(addr: string, head = 6, tail = 4): string {
+  if (!addr || addr.length <= head + tail + 3) return addr
+  return `${addr.slice(0, head)}...${addr.slice(-tail)}`
+}
+
+function RecipientRow({ recipient }: { recipient: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs font-medium w-24 shrink-0" style={{ color: '#1B3A4B', opacity: 0.45 }}>Recipient:</span>
+      <a
+        href={`https://stellar.expert/explorer/testnet/account/${recipient}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-mono text-xs underline underline-offset-2 shrink-0 hover:opacity-75"
+        style={{ color: '#2A6170' }}
+      >
+        {truncateAddress(recipient)}
+      </a>
+    </div>
+  )
 }
 
 function relativeTime(date: Date): string {
@@ -107,7 +130,11 @@ export function TxFeed({ items }: TxFeedProps) {
                           : 'Blocked'}
                     </span>
                     <span className="text-sm text-gray-500 shrink-0">
-                      {item.type === 'basic' ? 'Basic Analysis' : 'Deep Analysis'}
+                      {item.type === 'basic'
+                        ? 'Basic Analysis'
+                        : item.type === 'deep'
+                          ? 'Deep Analysis'
+                          : 'Blocked Recipient Demo'}
                     </span>
                     <span className="text-xs font-semibold text-gray-700 bg-white border border-gray-200 px-2 py-0.5 rounded-full shrink-0">
                       {item.amountXLM} XLM
@@ -124,14 +151,18 @@ export function TxFeed({ items }: TxFeedProps) {
                     {item.txHash && (
                       <ExplorerLink hash={item.txHash} label="Transaction:" />
                     )}
+                    {item.recipient && <RecipientRow recipient={item.recipient} />}
                   </div>
                 )}
 
-                {item.status === 'blocked' && item.reason && (
-                  <div className="mt-1.5 ml-7">
-                    <span className="font-mono text-xs text-red-600 bg-red-100 px-2 py-0.5 rounded">
-                      {item.reason}
-                    </span>
+                {item.status === 'blocked' && (item.reason || item.recipient) && (
+                  <div className="mt-1.5 ml-7 flex flex-col gap-1.5">
+                    {item.reason && (
+                      <span className="font-mono text-xs text-red-600 bg-red-100 px-2 py-0.5 rounded w-fit">
+                        {item.reason}
+                      </span>
+                    )}
+                    {item.recipient && <RecipientRow recipient={item.recipient} />}
                   </div>
                 )}
               </div>

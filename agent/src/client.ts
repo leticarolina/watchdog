@@ -12,8 +12,8 @@
 const BASE = 'http://localhost:3000';
 
 export type AnalysisResult =
-  | { success: true; txHash: string }
-  | { blocked: true; reason: string }
+  | { success: true; txHash: string; recipient?: string }
+  | { blocked: true; reason: string; recipient?: string }
   | { error: string };
 
 /**
@@ -28,7 +28,7 @@ export type AnalysisResult =
  *   3. Server returns { success, txHash } directly in the body.
  */
 export async function runAnalysis(
-  path: '/analysis/basic' | '/analysis/deep',
+  path: '/analysis/basic' | '/analysis/deep' | '/analysis/basic-blocked',
 ): Promise<AnalysisResult> {
   let response = await fetch(`${BASE}${path}`);
 
@@ -53,14 +53,21 @@ export async function runAnalysis(
 
   const body = await response.json() as Record<string, unknown>;
 
+  const recipient = body.recipient ? String(body.recipient) : undefined;
+
   if (body.blocked) {
-    return { blocked: true, reason: String(body.reason ?? 'ContractRejected') };
+    return {
+      blocked: true,
+      reason: String(body.reason ?? 'ContractRejected'),
+      ...(recipient ? { recipient } : {}),
+    };
   }
 
   if (body.success) {
     return {
       success: true,
       txHash: String(body.txHash ?? receiptTxHash),
+      ...(recipient ? { recipient } : {}),
     };
   }
 

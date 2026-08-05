@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { API_BASE } from './config'
 import { AgentPanel } from './components/AgentPanel'
 import { TxFeed, type TxItem } from './components/TxFeed'
@@ -112,6 +112,16 @@ export default function App() {
   const [txItems, setTxItems] = useState<TxItem[]>([])
   const [spentXLM, setSpentXLM] = useState(0)
   const [resetLoading, setResetLoading] = useState(false)
+  const [resetError, setResetError] = useState<string | null>(null)
+
+  // Reset-generation guard: incremented every time handleReset() runs. Each
+  // pending tx item records the generation it was started under; if a
+  // stale in-flight request (e.g. a drain-loop call or a slow /run/* fetch
+  // started before a reset) resolves after the generation has moved on, its
+  // onApproved/onBlocked callback is silently discarded instead of mutating
+  // the feed with a leftover row for the previous agent.
+  const resetGenerationRef = useRef(0)
+  const itemGenerationRef = useRef(new Map<string, number>())
 
   useEffect(() => {
     fetch(`${API_BASE}/config`).then((r) => r.json()).then(setConfig).catch(console.error)
@@ -133,8 +143,9 @@ export default function App() {
       .catch(console.error)
   }, [])
 
-  function handleStart(type: 'basic' | 'deep', amountXLM: number): string {
+  function handleStart(type: 'basic' | 'deep' | 'basic-blocked', amountXLM: number): string {
     const id = makeId()
+    itemGenerationRef.current.set(id, resetGenerationRef.current)
     setTxItems((prev) => [
       { id, type, status: 'pending', amountXLM, timestamp: new Date() },
       ...prev,
@@ -142,36 +153,57 @@ export default function App() {
     return id
   }
 
+  /** True if `pendingId` was started under the generation still current (not stale from a since-completed reset). */
+  function isCurrentGeneration(pendingId: string): boolean {
+    const startedGeneration = itemGenerationRef.current.get(pendingId)
+    itemGenerationRef.current.delete(pendingId)
+    return startedGeneration === resetGenerationRef.current
+  }
+
   function handleApproved(
     pendingId: string,
     amountXLM: number,
     txHash: string,
+    recipient?: string,
   ) {
+    if (!isCurrentGeneration(pendingId)) return // stale response from before a reset — discard silently
+
+    setResetError(null) // a successful action clears any stale reset-failure message
     setTxItems((prev) =>
       prev.map((item) =>
         item.id === pendingId
-          ? { ...item, status: 'approved', txHash }
+          ? { ...item, status: 'approved', txHash, recipient }
           : item,
       ),
     )
     setSpentXLM((prev) => prev + amountXLM)
   }
 
-  function handleBlocked(pendingId: string, _amountXLM: number, reason: string) {
+  function handleBlocked(pendingId: string, _amountXLM: number, reason: string, recipient?: string) {
+    if (!isCurrentGeneration(pendingId)) return // stale response from before a reset — discard silently
+
     setTxItems((prev) =>
       prev.map((item) =>
-        item.id === pendingId ? { ...item, status: 'blocked', reason } : item,
+        item.id === pendingId ? { ...item, status: 'blocked', reason, recipient } : item,
       ),
     )
   }
 
   async function handleReset() {
+    // Bump the generation immediately so any request already in flight (started
+    // before this click) is treated as stale once it resolves, regardless of
+    // whether the reset call below ends up succeeding.
+    resetGenerationRef.current += 1
+    itemGenerationRef.current.clear()
+
     setResetLoading(true)
+    setResetError(null) // clear any stale message from a previous failed attempt
     try {
       const resetData: AgentInfo & { success?: boolean; error?: string } =
         await fetch(`${API_BASE}/reset`, { method: 'POST' }).then((r) => r.json())
       if (resetData.error) {
         console.error('[reset]', resetData.error)
+        setResetError(resetData.error)
         return
       }
       setAgent(resetData)
@@ -244,6 +276,7 @@ export default function App() {
             onBlocked={handleBlocked}
             onReset={handleReset}
             resetLoading={resetLoading}
+            resetError={resetError}
           />
           <TxFeed items={txItems} />
         </div>
