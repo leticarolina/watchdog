@@ -97,7 +97,7 @@ function LandingPage({ onLaunch }: { onLaunch: () => void }) {
       <p className="absolute bottom-6 text-xs text-[#1B3A4B]/60">
         <a href="https://www.letiazevedo.com" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-[#1B3A4B] transition-colors duration-200"
         > Leticia Azevedo </a>
-         - Built for Stellar Agents Hackathon 2026
+         - Built for Stellar Summit 2026
      </p>
     </div>
   )
@@ -274,9 +274,7 @@ export default function App() {
             onStart={handleStart}
             onApproved={handleApproved}
             onBlocked={handleBlocked}
-            onReset={handleReset}
             resetLoading={resetLoading}
-            resetError={resetError}
           />
           <TxFeed items={txItems} />
         </div>
@@ -288,6 +286,9 @@ export default function App() {
           windowSeconds={windowSeconds}
           spentXLM={spentXLM}
           agent={agent}
+          onReset={handleReset}
+          resetLoading={resetLoading}
+          resetError={resetError}
         />
       </main>
     </div>

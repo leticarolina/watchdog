@@ -14,6 +14,9 @@ interface ContractStateProps {
   windowSeconds: number
   spentXLM: number
   agent: AgentInfo | null
+  onReset?: () => void
+  resetLoading?: boolean
+  resetError?: string | null
 }
 
 function truncateAddress(addr: string): string {
@@ -38,7 +41,7 @@ function formatCountdown(seconds: number): string {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 }
 
-export function ContractState({ maxSinglePaymentXLM, dailyBudgetXLM, windowSeconds, spentXLM, agent }: ContractStateProps) {
+export function ContractState({ maxSinglePaymentXLM, dailyBudgetXLM, windowSeconds, spentXLM, agent, onReset, resetLoading, resetError }: ContractStateProps) {
   const remaining = Math.max(0, dailyBudgetXLM - spentXLM)
   const usedPct = dailyBudgetXLM > 0 ? Math.min(1, spentXLM / dailyBudgetXLM) : 0
   const remainingPct = dailyBudgetXLM > 0 ? remaining / dailyBudgetXLM : 1
@@ -142,6 +145,24 @@ export function ContractState({ maxSinglePaymentXLM, dailyBudgetXLM, windowSecon
           <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#1B3A4B', opacity: 0.4 }}>
             Agent
           </p>
+
+          {agent.totalAgents > 0 && (
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-flex items-center rounded-full px-3 py-1 text-sm font-bold uppercase tracking-wide"
+                style={{
+                  background: agent.agentIndex === 0 ? '#2A617018' : '#7c3aed18',
+                  color: agent.agentIndex === 0 ? '#2A6170' : '#7c3aed',
+                }}
+              >
+                Agent {agent.agentIndex === 0 ? 'A' : 'B'}
+              </span>
+              <span className="text-xs" style={{ color: '#1B3A4B', opacity: 0.4 }}>
+                {agent.agentIndex + 1} of {agent.totalAgents}
+              </span>
+            </div>
+          )}
+
           <a
             href={`https://stellar.expert/explorer/testnet/account/${agent.currentAgent}`}
             target="_blank"
@@ -153,13 +174,31 @@ export function ContractState({ maxSinglePaymentXLM, dailyBudgetXLM, windowSecon
               {truncateAddress(agent.currentAgent)}
             </p>
           </a>
-          {agent.totalAgents > 0 && (
-            <p className="text-xs text-center" style={{ color: '#1B3A4B', opacity: 0.4 }}>
-              <span className="font-semibold" style={{ color: '#1B3A4B', opacity: 1 }}>
-                Agent {agent.agentIndex === 0 ? 'A' : 'B'}
-              </span>
-              {' · '}{agent.agentIndex + 1} of {agent.totalAgents}
-            </p>
+
+          {onReset && (
+            <div className="flex flex-col items-center gap-1.5 mt-1">
+              <button
+                onClick={onReset}
+                disabled={resetLoading}
+                className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-70 disabled:opacity-40 disabled:cursor-not-allowed text-left whitespace-nowrap"
+                style={{ background: '#95ba9c' }}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs uppercase tracking-widest opacity-70">Reset Demo</span>
+                  {resetLoading
+                    ? <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    : <span className="text-base">↺</span>
+                  }
+                </div>
+                <p className="text-xl font-bold">New Agent</p>
+              </button>
+              <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>Switch to a fresh budget window</p>
+              {resetError && (
+                <p role="alert" className="text-xs text-center" style={{ color: '#dc2626' }}>
+                  {resetError}
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}

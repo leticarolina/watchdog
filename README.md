@@ -176,7 +176,7 @@ cd agent && npm install && npm run start
 cd frontend && npm install && npm run dev
 ```
 
-The dashboard demonstrates all six rules live: a normal payment approving, a payment exceeding the single-payment ceiling, a drain attempt hitting the budget cap, a payment to a non-allowlisted recipient being blocked, and an emergency pause halting all payments, each with a real Stellar testnet transaction hash you can verify independently.
+The dashboard demonstrates all six rules live: a normal payment approving, a payment exceeding the single-payment ceiling, a drain attempt hitting the budget cap, a payment to a non-allowlisted recipient being blocked, and an emergency pause halting all payments, each with a real Stellar testnet transaction hash to verify independently.
 
 ---
 

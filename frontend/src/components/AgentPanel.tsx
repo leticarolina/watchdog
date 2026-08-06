@@ -7,15 +7,13 @@ interface AgentPanelProps {
   onStart: (type: 'basic' | 'deep' | 'basic-blocked', amountXLM: number) => string
   onApproved: (pendingId: string, amountXLM: number, txHash: string, recipient?: string) => void
   onBlocked: (pendingId: string, amountXLM: number, reason: string, recipient?: string) => void
-  onReset?: () => void
   resetLoading?: boolean
-  resetError?: string | null
 }
 
 const DRAIN_MAX_ATTEMPTS = 6
 const DRAIN_DELAY_MS = 5000
 
-export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, onBlocked, onReset, resetLoading, resetError }: AgentPanelProps) {
+export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, onBlocked, resetLoading }: AgentPanelProps) {
   const [basicLoading, setBasicLoading] = useState(false)
   const [deepLoading, setDeepLoading] = useState(false)
   const [drainLoading, setDrainLoading] = useState(false)
@@ -160,7 +158,7 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
           onClick={runDrain}
           disabled={anyLoading}
           className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-70 disabled:opacity-40 disabled:cursor-not-allowed text-left"
-          style={{ background: '#ffb913' }}
+          style={{ background: '#d8ac00' }}
         >
           <div className="flex items-center justify-between w-full">
             <span className="text-xs uppercase tracking-widest opacity-70">Drain Budget</span>
@@ -169,7 +167,7 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
               : <span className="text-base">⚡</span>
             }
           </div>
-          <p className="text-xl font-bold">Auto-repeat</p>
+          <p className="text-xl font-bold">Repeat 3XLM</p>
         </button>
         <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>Spams basic until budget cap hit</p>
       </div>
@@ -183,7 +181,7 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
           style={{ background: '#7c3aed' }}
         >
           <div className="flex items-center justify-between w-full">
-            <span className="text-xs uppercase tracking-widest opacity-70">Blocked Recipient</span>
+            <span className="text-xs uppercase tracking-widest opacity-70">Blocked Receiver</span>
             {blockedLoading
               ? <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               : <span className="text-base">⛔</span>
@@ -193,36 +191,6 @@ export function AgentPanel({ basicPriceXLM, deepPriceXLM, onStart, onApproved, o
         </button>
         <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>Pays a non-allowlisted recipient</p>
       </div>
-
-      {/* Divider + Reset Demo */}
-      {onReset && (
-        <>
-          <div className="hidden lg:block w-px self-stretch mx-1" style={{ background: '#1B3A4B14' }} />
-          <div className="flex flex-col items-center gap-1.5">
-            <button
-              onClick={onReset}
-              disabled={anyLoading}
-              className="w-full text-white rounded-lg px-5 py-4 flex flex-col items-start gap-1 transition-opacity hover:opacity-70 disabled:opacity-40 disabled:cursor-not-allowed text-left whitespace-nowrap"
-              style={{ background: '#95ba9c' }}
-            >
-              <div className="flex items-center justify-between w-full">
-                <span className="text-xs uppercase tracking-widest opacity-70">Reset Demo</span>
-                {resetLoading
-                  ? <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  : <span className="text-base">↺</span>
-                }
-              </div>
-              <p className="text-xl font-bold">New Agent</p>
-            </button>
-            <p className="text-xs" style={{ color: '#1B3A4B', opacity: 0.45 }}>Switch to a fresh budget window</p>
-            {resetError && (
-              <p role="alert" className="text-xs text-center max-w-[160px]" style={{ color: '#dc2626' }}>
-                {resetError}
-              </p>
-            )}
-          </div>
-        </>
-      )}
     </div>
   )
 }
