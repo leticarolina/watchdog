@@ -6,7 +6,7 @@ Enforcement that lives in the contract holding the funds, not in a database atta
 
 - [Live Site](https://watchdog-agent.vercel.app)
 - [Contract](https://stellar.expert/explorer/testnet/contract/CBA2LXX3FZ5TN5HHVGSJ47AUF3ZCLS6NG6AKE2ZZEHC5LEJQLJU6RBT2)
-- [Demo Video](https://www.link.com) <!-- update once recorded -->
+- [Demo Video](https://www.loom.com/share/c30f788357ef43a38392d7df1e4270b0)
 
 ---
 
