@@ -176,7 +176,7 @@ cd agent && npm install && npm run start
 cd frontend && npm install && npm run dev
 ```
 
-The dashboard demonstrates all six rules live: a normal payment approving, a payment exceeding the single-payment ceiling, a drain attempt hitting the budget cap, a payment to a non-allowlisted recipient being blocked, and an emergency pause halting all payments, each with a real Stellar testnet transaction hash to verify independently.
+The dashboard demonstrates five of the six rules live: a normal payment approving, a payment exceeding the single-payment ceiling, a drain attempt hitting the budget cap, a payment to a non-allowlisted recipient being blocked, and a fresh agent reset, each with a real Stellar testnet transaction hash to verify independently. Pause is implemented and covered by the test suite (`is_paused`/`set_paused`) but not wired into the demo UI.
 
 ---
 
