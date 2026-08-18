@@ -1,4 +1,4 @@
-<h1><img alt="logo" src="frontend/public/watchdog.png" height="36" style="vertical-align:middle;" /> Watchdog</h1>
+<h1><img alt="logo" src="frontend/public/watchdog.png" height="36" style="vertical-align:middle;" /> Watchdog Agent</h1>
 
 **On-chain spending guardrails for autonomous agent payments.**
 
@@ -78,6 +78,10 @@ Rules 1–4 alone are things a well-built database could also enforce. Rules 5 a
 - **Composable.** Any agent on Stellar can call `request_payment`. Watchdog is a primitive, not a closed product.
 - **Auditable.** Every approval and block emits an on-chain event. The full spending history of any agent is verifiable by anyone.
 
+## Why This Matters
+
+The agent economy is already live and evolving, agents are buying API calls, spinning up compute, transacting on-chain today. Every one of them needs a spending policy that's enforceable and auditable, not just configured. The same way ERC-20's `approve` pattern let protocols spend on a user's behalf safely, Watchdog is a standard, composable safety primitive agent developers could adopt instead of building their own, and building their own, per the current state of the ecosystem, usually means another off-chain policy service with the same trust gap this project exists to close.
+
 ---
 
 ## A SDK limitation I hit (and how I handled it)
@@ -132,10 +136,6 @@ That's not a flaw in x402/MPP, it's specific to custody-style architectures, whe
 **A second direction exploring alongside it:** muxed accounts (SEP-23), which let a single owner-controlled Stellar account represent many virtual agent sub-identities without creating a separate on-chain account — and separate deposit — for each one. Muxed accounts alone don't provide rule enforcement (that still needs to live in a smart-account's `__check_auth` or similar mechanism), but combined with the smart-account model, they could let one deployment support many agents cleanly, without today's per-agent vault-funding overhead.
 
 ---
-
-## Why This Matters
-
-The agent economy is already live and evolving, agents are buying API calls, spinning up compute, transacting on-chain today. Every one of them needs a spending policy that's enforceable and auditable, not just configured. The same way ERC-20's `approve` pattern let protocols spend on a user's behalf safely, Watchdog is a standard, composable safety primitive agent developers could adopt instead of building their own, and building their own, per the current state of the ecosystem, usually means another off-chain policy service with the same trust gap this project exists to close.
 
 ## Origin
 
