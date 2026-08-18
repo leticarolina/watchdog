@@ -1,8 +1,8 @@
 .env
 *.env
 .claude/
-.env.*
-!.env.example
+EVM_TO_STELLAR.md
+
 # Node
 node_modules/
 
@@ -11,3 +11,4 @@ target/
 
 # Mac
 .DS_Store
+

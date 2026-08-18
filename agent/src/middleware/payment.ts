@@ -6,8 +6,8 @@ import { simulateRequestPayment, executeRequestPayment } from '../contract.js';
 //
 // MPP's built-in `stellar.charge()` method settles a payment by having the
 // payer sign a plain Stellar Asset Contract `transfer` directly to the
-// recipient's wallet. Watchdog's custody model requires the opposite: the
-// Watchdog CONTRACT holds the funds and is the only party allowed to move
+// recipient's wallet. Watchdog's current custody model requires the opposite: the
+// Watchdog contract holds the funds and is the only party allowed to move
 // them out, so settlement has to be a call to the contract's
 // `request_payment` — which enforces the spending rules and performs the
 // payout itself in the same transaction — not a wallet-to-wallet transfer.
@@ -36,13 +36,10 @@ function stroopsToXlm(stroops: number): string {
   return (stroops / 10_000_000).toFixed(7);
 }
 
-/** Which env var to derive the payment recipient from — A is the allowlisted recipient, B deliberately is not. */
-const DEFAULT_RECIPIENT_ENV_VAR = 'RECIPIENT_SECRET_KEY_A';
-
 /** Derive the server's Stellar public key (= payment recipient) from env. */
-function getRecipient(recipientEnvVar: string = DEFAULT_RECIPIENT_ENV_VAR): string {
-  const secretKey = process.env[recipientEnvVar];
-  if (!secretKey) throw new Error(`${recipientEnvVar} not set`);
+function getRecipient(): string {
+  const secretKey = process.env.STELLAR_SECRET_KEY;
+  if (!secretKey) throw new Error('STELLAR_SECRET_KEY not set');
   return Keypair.fromSecret(secretKey).publicKey();
 }
 
@@ -59,8 +56,8 @@ function getRecipient(recipientEnvVar: string = DEFAULT_RECIPIENT_ENV_VAR): stri
  * instead of trusting header presence.
  */
 function getAgentSecretKey(): string {
-  const secretKey = process.env.AGENT_SECRET_KEY_A;
-  if (!secretKey) throw new Error('AGENT_SECRET_KEY_A not set');
+  const secretKey = process.env.AGENT_SECRET_KEY;
+  if (!secretKey) throw new Error('AGENT_SECRET_KEY not set');
   return secretKey;
 }
 
@@ -77,8 +74,8 @@ export type PaymentReceipt = {
 
 type VerifyResult =
   | { status: 402; challenge: globalThis.Response }
-  | { status: 200; receipt: PaymentReceipt; receiptHeader: string; recipient: string }
-  | { blocked: true; reason: string; recipient: string };
+  | { status: 200; receipt: PaymentReceipt; receiptHeader: string }
+  | { blocked: true; reason: string };
 
 /**
  * Verify an incoming payment credential and settle via request_payment.
@@ -87,18 +84,14 @@ type VerifyResult =
  * - No credential → issues a 402 challenge (WWW-Authenticate header).
  * - Credential present → signs and submits request_payment, returns receipt metadata.
  */
-async function verifyPayment(
-  req: Request,
-  requiredAmount: number,
-  recipientEnvVar: string = DEFAULT_RECIPIENT_ENV_VAR,
-): Promise<VerifyResult> {
+async function verifyPayment(req: Request, requiredAmount: number): Promise<VerifyResult> {
   const agent = getAgent();
-  const recipient = getRecipient(recipientEnvVar);
+  const recipient = getRecipient();
 
   // Contract simulation runs first — no payment is issued if the rules would reject.
   const simulation = await simulateRequestPayment(agent, recipient, requiredAmount);
   if (!simulation.approved) {
-    return { blocked: true, reason: simulation.error ?? 'ContractRejected', recipient };
+    return { blocked: true, reason: simulation.error ?? 'ContractRejected' };
   }
 
   const credential = req.headers.authorization;
@@ -136,11 +129,7 @@ async function verifyPayment(
   const exec = await executeRequestPayment(getAgentSecretKey(), recipient, requiredAmount);
 
   if (!exec.success) {
-    // Contract state can change between the 402 challenge and settlement
-    // (e.g. budget consumed by a different call in between) — this is a
-    // normal rejection, not a server error, so it gets the same blocked
-    // shape as the earlier simulation-based check, not a throw.
-    return { blocked: true, reason: exec.error ?? 'SettlementFailed', recipient };
+    throw new Error(exec.error ?? 'SettlementFailed');
   }
 
   const receipt: PaymentReceipt = {
@@ -153,22 +142,16 @@ async function verifyPayment(
     JSON.stringify({ reference: receipt.txHash, method: receipt.method, timestamp: receipt.timestamp }),
   ).toString('base64');
 
-  return { status: 200, receipt, receiptHeader, recipient };
+  return { status: 200, receipt, receiptHeader };
 }
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 
-/**
- * @param recipientEnvVar Which env var to derive the recipient from —
- *   defaults to RECIPIENT_SECRET_KEY_A (allowlisted). Pass
- *   'RECIPIENT_SECRET_KEY_B' to target the deliberately-unallowlisted demo
- *   recipient instead (see /analysis/basic-blocked in server.ts).
- */
-export function requirePayment(requiredAmount: number, recipientEnvVar: string = DEFAULT_RECIPIENT_ENV_VAR) {
+export function requirePayment(requiredAmount: number) {
   return async function (req: Request, res: Response, next: NextFunction) {
     let result: VerifyResult;
     try {
-      result = await verifyPayment(req, requiredAmount, recipientEnvVar);
+      result = await verifyPayment(req, requiredAmount);
     } catch (err: any) {
       console.error('[payment] verification error:', err.message);
       return res.status(500).json({ error: 'payment verification failed' });
@@ -182,7 +165,6 @@ export function requirePayment(requiredAmount: number, recipientEnvVar: string =
         return res.json({
           blocked: true,
           reason: result.reason,
-          recipient: result.recipient,
         });
       }
 
@@ -201,7 +183,6 @@ export function requirePayment(requiredAmount: number, recipientEnvVar: string =
     // Attach verified payment metadata for downstream route handlers.
     res.locals.requiredAmount = requiredAmount;
     res.locals.paymentReceipt = result.receipt;
-    res.locals.recipient = result.recipient;
 
     // Propagate the Payment-Receipt header so clients can confirm settlement.
     if (result.receiptHeader) {
@@ -211,3 +192,4 @@ export function requirePayment(requiredAmount: number, recipientEnvVar: string =
     next();
   };
 }
+
